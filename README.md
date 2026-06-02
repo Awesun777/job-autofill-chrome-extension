@@ -1,12 +1,12 @@
-# Smart Job Autofill
+# Smart Job Autofill Local Chrome Extension (for Mac)
 
-A Chrome extension that eliminates repetitive form-filling on job applications. Upload your resume once, then fill any application field in two clicks — with full control over which experience and which specific fields get filled.
+When workday autofill fucked up, this extension is your savior. Don't waste hours changing the typo made by job portal. Upload your resume once through this Chrome extension and just do a few clicks, with full control over which experience and which specific fields get filled. All your information is saved locally. 
 
 ---
 
 ## What it does
 
-Most job applications ask the same questions: name, email, work history, education, skills. This extension parses your resume with AI, stores the data as a reusable profile, and injects smart fill buttons (⚡) next to every compatible field on job application pages.
+Most job applications ask the same questions: name, email, work history, education, skills. This extension parses your resume with AI, stores the data as a reusable profile, and injects smart fill buttons (⚡) next to every compatible field on job application pages. It is specifically designed to quickly rewrite the typos made by Workday.
 
 It works on Workday, Greenhouse, Lever, iCIMS, Taleo, SmartRecruiters, LinkedIn Easy Apply, Indeed, and most standard HTML forms.
 
