@@ -43,11 +43,26 @@ It works on Workday, Greenhouse, Lever, iCIMS, Taleo, SmartRecruiters, LinkedIn 
 - An [OpenAI API key](https://platform.openai.com/api-keys) (used only for resume parsing; stored locally, never sent anywhere except OpenAI)
 
 ### Install the extension
-1. Download or clone this repository
-2. Open Chrome and go to `chrome://extensions`
-3. Enable **Developer mode** (top right toggle)
-4. Click **Load unpacked** and select the project folder
-5. The extension icon appears in your toolbar
+
+**Step 1 — Download the code**
+
+Click the green **Code** button on this page → **Download ZIP**, then unzip the folder somewhere permanent on your computer (e.g. `Documents/smart-job-autofill`). Don't delete or move the folder after installing — Chrome loads the extension directly from it.
+
+**Step 2 — Open Chrome Extensions**
+
+In Chrome, go to `chrome://extensions` in the address bar, or open the menu (⋮) → **Extensions** → **Manage Extensions**.
+
+**Step 3 — Enable Developer Mode**
+
+Toggle **Developer mode** on in the top-right corner of the Extensions page. This unlocks the ability to install extensions from your own files.
+
+**Step 4 — Load the extension**
+
+Click **Load unpacked**, then navigate to and select the folder you unzipped in Step 1 (the folder that contains `manifest.json`). Click **Select Folder**.
+
+**Step 5 — Pin it to your toolbar**
+
+The extension is now installed. Click the puzzle piece icon (🧩) in the Chrome toolbar → find **Smart Job Autofill** → click the pin icon so it stays visible in your toolbar.
 
 ### Add your API key
 1. Click the extension icon → **Settings** tab
