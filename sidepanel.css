@@ -1,0 +1,13 @@
+/* Side-panel overrides: popup.css sizes the page for a 420px popup window,
+ * but the side panel owns its width (user-resizable) and the full viewport
+ * height, so the fixed box becomes fluid here. */
+html, body {
+  width: auto;
+  min-height: 100vh;
+  max-height: none;
+}
+
+#root {
+  height: 100vh;
+  max-height: none;
+}

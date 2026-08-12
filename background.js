@@ -1,3 +1,8 @@
+// The UI lives in the side panel (like the RomainTalk extension): clicking
+// the toolbar icon docks it on the right instead of opening a popup, so it
+// stays open while you work through an application form.
+chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
 const KEYS = {
   PROFILES: "sja_profiles",
   ACTIVE_ID: "sja_active_profile_id",
