@@ -66,17 +66,25 @@
       .block-check { color: var(--navy); font-weight: 800; visibility: hidden; }
       .block.selected .block-check { visibility: visible; }
 
-      /* ── Floating bottom dock: the menu lives here, centered ── */
+      /* ── Floating bottom menu: Fill · Profiles · Settings, centered ── */
       .dock {
         position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-        width: min(92%, 340px); z-index: 50;
+        width: min(92%, 320px); z-index: 50;
         background: #FFFDF8;
         border: 1px solid var(--line); border-radius: 14px;
         box-shadow: 0 10px 28px -14px rgba(37, 35, 33, .35);
-        padding: 10px; display: flex; flex-direction: column; gap: 8px;
+        padding: 6px; display: flex; gap: 4px;
       }
-      .dock[hidden] { display: none; }
-      main.docked { padding-bottom: 140px; }
+      .menu-btn {
+        flex: 1; padding: 8px 4px; border: 0; border-radius: 10px;
+        background: transparent; color: var(--gray);
+        font: inherit; font-weight: 800; font-size: 13px; cursor: pointer;
+      }
+      .menu-btn:hover { color: var(--navy); }
+      .menu-btn.active { background: var(--blue); color: var(--navy); }
+      main { padding-bottom: 74px; }
+
+      .actions { padding: 14px 20px 0; display: flex; flex-direction: column; gap: 8px; }
 
       .btn-primary {
         width: 100%; padding: 11px; border: 0; border-radius: 10px;
@@ -85,13 +93,6 @@
       }
       .btn-primary:hover { background: #1d4d82; }
       .btn-primary:disabled { background: var(--line); color: var(--gray); cursor: not-allowed; }
-      .btn-ghost {
-        width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 10px;
-        background: transparent; color: var(--gray);
-        font: inherit; font-weight: 700; font-size: 13px; cursor: pointer;
-      }
-      .btn-ghost:hover { border-color: var(--burgundy); color: var(--burgundy); }
-
       .banner { padding: 9px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 700; display: none; }
       .banner.ok { display: block; background: rgba(47,158,68,.1); color: var(--green); border: 1px solid rgba(47,158,68,.3); }
       .banner.err { display: block; background: rgba(166,61,74,.08); color: var(--burgundy); border: 1px solid rgba(166,61,74,.3); }
@@ -147,7 +148,7 @@
       <span class="ver" id="ver"></span>
     </header>
     <main id="main"></main>
-    <div class="dock" id="dock" hidden></div>
+    <nav class="dock" id="dock"></nav>
     <div id="toast">Copied ✓</div>
     <script src="sidepanel.js"></script>
   </body>

@@ -65,33 +65,36 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   font-size: 16px;
 }
-/* The side-panel home IS the fill view now; the React app keeps only
-   Profiles and Settings. (The bundle's default tab is set to "profiles".) */
-.header-tabs .tab-btn:first-child { display: none; }
-
+/* The Fill · Profiles · Settings menu floats centered at the bottom, matching
+   the side-panel home. back-to-panel.js swaps the React "Fill" tab (which
+   would show the old fill view) for one that navigates back to the panel. */
 .header-tabs {
-  display: flex;
-  gap: 2px;
-  background: var(--bg);
-  border-radius: var(--radius);
-  padding: 2px;
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  width: min(92%, 320px); z-index: 9999;
+  display: flex; gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 10px 28px -14px rgba(37,35,33,.35);
+  padding: 6px;
 }
+.header-tabs .tab-btn { flex: 1; }
+.content { padding-bottom: 74px !important; }
 .tab-btn {
-  padding: 4px 10px;
+  padding: 8px 4px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
   transition: all 0.15s;
 }
 .tab-btn.active {
-  background: var(--accent);
-  color: white;
+  background: var(--accent-light);
+  color: var(--accent);
 }
-.tab-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+.tab-btn:hover:not(.active) { color: var(--accent); }
 
 /* ─── Scrollable Content ───────────────────────────────────────────────────── */
 .content {

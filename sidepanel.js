@@ -113,11 +113,9 @@ function initials(p) {
 
 function renderHome() {
   main.innerHTML = "";
-  main.classList.add("docked");
-  renderDock();
 
   if (!profiles.length) {
-    main.appendChild(el(`<div class="empty">No resumes yet.<br/>Use “Manage profiles” below to upload or create one.</div>`));
+    main.appendChild(el(`<div class="empty">No resumes yet.<br/>Open <b>Profiles</b> below to upload or create one.</div>`));
     return;
   }
 
@@ -148,13 +146,9 @@ function renderHome() {
     list.appendChild(block);
   }
   main.appendChild(list);
-}
 
-// The menu floats centered at the bottom, over the scrolling list.
-function renderDock() {
-  dock.hidden = false;
-  dock.innerHTML = "";
-
+  // Autofill sits right beneath the resume blocks, in flow.
+  const actions = el(`<div class="actions"></div>`);
   const banner = el(`<div class="banner"></div>`);
   const fill = el(`<button class="btn-primary">Autofill this page</button>`);
   fill.addEventListener("click", async () => {
@@ -171,15 +165,26 @@ function renderDock() {
     fill.disabled = false;
     fill.textContent = "Autofill this page";
   });
-  if (profiles.length) dock.appendChild(fill);
-  dock.appendChild(manageBtn());
-  dock.appendChild(banner);
+  actions.appendChild(fill);
+  actions.appendChild(banner);
+  main.appendChild(actions);
 }
 
-function manageBtn() {
-  const b = el(`<button class="btn-ghost">Manage profiles (edit, upload, settings)</button>`);
-  b.addEventListener("click", () => { location.href = "popup.html"; });
-  return b;
+// ── bottom menu: Fill · Profiles · Settings ──────────────────────────────────
+// The floating block is the app's navigation. Fill is this page; Profiles and
+// Settings open the (re-skinned) React editor on the matching tab.
+function renderMenu() {
+  dock.innerHTML = "";
+  const items = [
+    ["Fill", () => { view = { name: "home" }; render(); }, true],
+    ["Profiles", () => { location.href = "popup.html#profiles"; }, false],
+    ["Settings", () => { location.href = "popup.html#settings"; }, false],
+  ];
+  for (const [label, go, active] of items) {
+    const b = el(`<button class="menu-btn ${active ? "active" : ""}">${label}</button>`);
+    b.addEventListener("click", go);
+    dock.appendChild(b);
+  }
 }
 
 // ── detail view ──────────────────────────────────────────────────────────────
@@ -221,8 +226,6 @@ function append(parent, node) { if (node) parent.appendChild(node); }
 
 function renderDetail(p) {
   main.innerHTML = "";
-  main.classList.remove("docked");
-  dock.hidden = true;
 
   const back = el(`<div class="backrow">← Resumes</div>`);
   back.addEventListener("click", () => { view = { name: "home" }; render(); });
@@ -318,4 +321,5 @@ function render() {
   renderHome();
 }
 
+renderMenu();
 load();

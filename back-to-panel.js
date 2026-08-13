@@ -1,15 +1,22 @@
-// popup.html is now only reached from the side panel's "Manage profiles":
-// float a way back to the panel home over the React editor.
+// The editor's bottom menu must offer the same three destinations as the
+// panel home. React renders "Fill" wired to its old in-app fill view; swap it
+// for one that navigates back to the side-panel home, once the tab bar exists.
 (() => {
-  const btn = document.createElement("button");
-  btn.textContent = "← Back";
-  btn.style.cssText =
-    "position:fixed;top:8px;right:8px;z-index:99999;padding:5px 12px;" +
-    "border:1px solid #E7DFD2;border-radius:8px;background:#FFFDF8;" +
-    "color:#173F6B;font:700 12px 'Nunito Sans',-apple-system,system-ui,sans-serif;" +
-    "cursor:pointer;opacity:.95;";
-  btn.addEventListener("mouseenter", () => { btn.style.opacity = "1"; });
-  btn.addEventListener("mouseleave", () => { btn.style.opacity = ".9"; });
-  btn.addEventListener("click", () => { location.href = "sidepanel.html"; });
-  document.body.appendChild(btn);
+  const started = Date.now();
+  const timer = setInterval(() => {
+    const tabs = document.querySelector(".header-tabs");
+    if (!tabs) {
+      if (Date.now() - started > 4000) clearInterval(timer);
+      return;
+    }
+    clearInterval(timer);
+    for (const b of tabs.querySelectorAll(".tab-btn")) {
+      if (b.textContent.trim() === "Fill") b.remove();
+    }
+    const fill = document.createElement("button");
+    fill.className = "tab-btn";
+    fill.textContent = "Fill";
+    fill.addEventListener("click", () => { location.href = "sidepanel.html"; });
+    tabs.prepend(fill);
+  }, 50);
 })();
