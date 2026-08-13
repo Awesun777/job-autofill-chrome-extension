@@ -7,11 +7,12 @@
 //           read-only: click any field/chip to copy it.
 // Editing still happens in the original React app via "Manage profiles".
 
-const KEYS = { PROFILES: "sja_profiles", ACTIVE_ID: "sja_active_profile_id" };
+const KEYS = { PROFILES: "sja_profiles", ACTIVE_ID: "sja_active_profile_id", SAVED_JOBS: "sja_saved_jobs" };
 
 let profiles = [];
+let savedJobs = [];
 let activeId = null;
-let view = { name: "home" }; // or { name: "detail", id }
+let view = { name: "home" }; // or { name: "detail", id } or { name: "jobs" }
 
 const main = document.getElementById("main");
 const dock = document.getElementById("dock");
@@ -45,8 +46,9 @@ async function doAutofill() {
 // ── data ─────────────────────────────────────────────────────────────────────
 
 async function load() {
-  const d = await chrome.storage.local.get([KEYS.PROFILES, KEYS.ACTIVE_ID]);
+  const d = await chrome.storage.local.get([KEYS.PROFILES, KEYS.ACTIVE_ID, KEYS.SAVED_JOBS]);
   profiles = d[KEYS.PROFILES] || [];
+  savedJobs = d[KEYS.SAVED_JOBS] || [];
   activeId = d[KEYS.ACTIVE_ID] || profiles[0]?.id || null;
   // If the profile being viewed was deleted in the editor, fall back home.
   if (view.name === "detail" && !profiles.some((p) => p.id === view.id)) view = { name: "home" };
@@ -54,7 +56,7 @@ async function load() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && (changes[KEYS.PROFILES] || changes[KEYS.ACTIVE_ID])) load();
+  if (area === "local" && (changes[KEYS.PROFILES] || changes[KEYS.ACTIVE_ID] || changes[KEYS.SAVED_JOBS])) load();
 });
 
 // ── shared helpers ───────────────────────────────────────────────────────────
@@ -170,13 +172,14 @@ function renderHome() {
   main.appendChild(actions);
 }
 
-// ── bottom menu: Fill · Profiles · Settings ──────────────────────────────────
-// The floating block is the app's navigation. Fill is this page; Profiles and
-// Settings open the (re-skinned) React editor on the matching tab.
+// ── bottom menu: Fill · Jobs · Profiles · Settings ───────────────────────────
+// The floating block is the app's navigation. Fill and Jobs live in this
+// panel; Profiles and Settings open the React editor on the matching tab.
 function renderMenu() {
   dock.innerHTML = "";
   const items = [
-    ["Fill", () => { view = { name: "home" }; render(); }, true],
+    ["Fill", () => { view = { name: "home" }; render(); }, view.name !== "jobs"],
+    ["Jobs", () => { view = { name: "jobs" }; render(); }, view.name === "jobs"],
     ["Profiles", () => { location.href = "popup.html#profiles"; }, false],
     ["Settings", () => { location.href = "popup.html#settings"; }, false],
   ];
@@ -184,6 +187,80 @@ function renderMenu() {
     const b = el(`<button class="menu-btn ${active ? "active" : ""}">${label}</button>`);
     b.addEventListener("click", go);
     dock.appendChild(b);
+  }
+}
+
+// ── saved jobs ───────────────────────────────────────────────────────────────
+// Captures from the in-page Save-job button, rendered as AI-ready blocks: one
+// click copies clean markdown (or a full outreach prompt) to paste into an AI
+// that will research LinkedIn contacts and draft the message.
+
+function jobMarkdown(j) {
+  return [
+    `# Job posting`,
+    `- Title: ${j.title}`,
+    `- Company: ${j.company}`,
+    `- Source: ${j.source}`,
+    `- URL: ${j.url}`,
+    `- Saved: ${(j.capturedAt || "").slice(0, 10)}`,
+    ``,
+    `## Full job description`,
+    ``,
+    j.description || "(no description captured)",
+  ].join("\n");
+}
+
+function outreachPrompt(j) {
+  return [
+    `You are helping me with recruiting outreach for a job I want. Using the job posting below:`,
+    `1. Summarize what the hiring team most cares about (top 5 signals).`,
+    `2. Give me LinkedIn search keywords and likely titles of the recruiter / hiring manager for this role.`,
+    `3. Draft a LinkedIn connection note (under 300 characters) and a longer follow-up message tailored to this posting.`,
+    `4. Draft a short cold email version with a compelling subject line.`,
+    `Keep the tone warm, specific and non-generic.`,
+    ``,
+    jobMarkdown(j),
+  ].join("\n");
+}
+
+async function saveJobs(jobs) {
+  await chrome.storage.local.set({ [KEYS.SAVED_JOBS]: jobs });
+}
+
+function renderJobs() {
+  main.innerHTML = "";
+
+  main.appendChild(el(`<div class="label">Saved jobs</div>`));
+
+  if (!savedJobs.length) {
+    main.appendChild(el(
+      `<div class="empty">No jobs saved yet.<br/>Open a job posting and click the floating <b>💼 Save job</b> button on the page.</div>`
+    ));
+    return;
+  }
+
+  main.appendChild(el(`<div class="hint">Click a card to copy it as AI-ready markdown</div>`));
+
+  for (const j of savedJobs) {
+    const card = el(`
+      <div class="job">
+        <div class="job-title">${esc(j.title)}</div>
+        <div class="job-meta">${esc([j.company, j.source, (j.capturedAt || "").slice(0, 10)].filter(Boolean).join(" · "))}</div>
+        <div class="job-btns">
+          <button class="btn-small primary">Copy for AI</button>
+          <button class="btn-small">Outreach prompt</button>
+          <button class="btn-small">Open</button>
+          <button class="btn-small">✕</button>
+        </div>
+      </div>`);
+    const [copyBtn, promptBtn, openBtn, delBtn] = card.querySelectorAll("button");
+    const copyCard = async (text, e) => { await copyText(text); copied(card, e.clientX, e.clientY); };
+    card.addEventListener("click", (e) => { if (!(e.target instanceof HTMLButtonElement)) copyCard(jobMarkdown(j), e); });
+    copyBtn.addEventListener("click", (e) => copyCard(jobMarkdown(j), e));
+    promptBtn.addEventListener("click", (e) => copyCard(outreachPrompt(j), e));
+    openBtn.addEventListener("click", () => chrome.tabs.create({ url: j.url }));
+    delBtn.addEventListener("click", () => saveJobs(savedJobs.filter((x) => x.id !== j.id)));
+    main.appendChild(card);
   }
 }
 
@@ -378,6 +455,8 @@ function renderExtraSection(p) {
 // ── render ───────────────────────────────────────────────────────────────────
 
 function render() {
+  renderMenu();
+  if (view.name === "jobs") return renderJobs();
   if (view.name === "detail") {
     const p = profiles.find((x) => x.id === view.id);
     if (p) return renderDetail(p);
@@ -385,5 +464,4 @@ function render() {
   renderHome();
 }
 
-renderMenu();
 load();

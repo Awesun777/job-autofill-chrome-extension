@@ -739,14 +739,83 @@
         }
       });
     }
+
+    // ── Save-job capture ─────────────────────────────────────────────────────
+    // A floating pill on pages that look like job postings. One click stores
+    // the title + full description (plus company/url) in sja_saved_jobs, in a
+    // shape the side panel turns into AI-ready markdown for outreach drafting.
+
+    function looksLikeJobPage() {
+      const h = location.hostname;
+      if (/myworkdayjobs|greenhouse|lever\.co|icims|taleo|smartrecruiters|linkedin\.com\/jobs|indeed/.test(h + location.pathname)) return true;
+      const text = document.body.innerText.slice(0, 40000).toLowerCase();
+      const applyish = /apply now|apply for this job|submit application|postuler/.test(text);
+      const jobish = /responsibilities|qualifications|job description|what you.ll do|requirements/.test(text);
+      return applyish && jobish;
+    }
+
+    function extractJobPosting() {
+      const meta = (sel) => document.querySelector(`meta[property="${sel}"], meta[name="${sel}"]`)?.content?.trim();
+      const title = document.querySelector("h1")?.innerText.trim() || meta("og:title") || document.title.trim();
+      const company = meta("og:site_name") || location.hostname.replace(/^www\./, "");
+      // The description is the biggest description-ish block; whole body as a
+      // last resort. Raw text on purpose — the AI reading it does the parsing.
+      let best = "";
+      for (const c of document.querySelectorAll('[class*="description" i], [id*="description" i], main, article, [role="main"]')) {
+        const t = c.innerText?.trim() ?? "";
+        if (t.length > best.length) best = t;
+      }
+      if (best.length < 200) best = document.body.innerText.trim();
+      return {
+        id: crypto.randomUUID(),
+        title, company,
+        url: location.href.split("#")[0],
+        source: location.hostname.replace(/^www\./, ""),
+        capturedAt: new Date().toISOString(),
+        description: best.slice(0, 20000),
+      };
+    }
+
+    function injectSaveJobButton() {
+      if (document.getElementById("sja-save-job")) return;
+      if (!looksLikeJobPage()) return;
+      const btn = document.createElement("button");
+      btn.id = "sja-save-job";
+      btn.textContent = "💼 Save job";
+      btn.title = "Save this job's title and description to Smart JobFill";
+      btn.style.cssText =
+        "position:fixed;bottom:18px;right:18px;z-index:2147483646;" +
+        "padding:9px 14px;border:none;border-radius:999px;cursor:pointer;" +
+        "background:#173F6B;color:#FFF8ED;font:700 13px 'Nunito Sans',-apple-system,system-ui,sans-serif;" +
+        "box-shadow:0 6px 18px -6px rgba(37,35,33,.45);opacity:.92;";
+      btn.addEventListener("mouseenter", () => { btn.style.opacity = "1"; });
+      btn.addEventListener("mouseleave", () => { btn.style.opacity = ".92"; });
+      btn.addEventListener("click", () => {
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        chrome.runtime.sendMessage({ type: "SAVE_JOB", job: extractJobPosting() }, (res) => {
+          btn.disabled = false;
+          if (res?.ok) {
+            btn.textContent = "✓ Saved";
+            btn.style.background = "#2F9E44";
+            setTimeout(() => { btn.textContent = "💼 Save job"; btn.style.background = "#173F6B"; }, 2000);
+          } else {
+            btn.textContent = "Save failed";
+            setTimeout(() => { btn.textContent = "💼 Save job"; }, 2000);
+          }
+        });
+      });
+      document.body.appendChild(btn);
+    }
+
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setTimeout(tryInjectSuggestions, 1500));
+      document.addEventListener("DOMContentLoaded", () => setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 1500));
     } else {
-      setTimeout(tryInjectSuggestions, 1500);
+      setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 1500);
     }
     const observer = new MutationObserver(() => {
       clearTimeout(window.__sjaObserverTimer);
-      window.__sjaObserverTimer = setTimeout(tryInjectSuggestions, 800);
+      window.__sjaObserverTimer = setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 800);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   })();

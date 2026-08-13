@@ -4,6 +4,7 @@
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
 const KEYS = {
+  SAVED_JOBS: "sja_saved_jobs",
   PROFILES: "sja_profiles",
   ACTIVE_ID: "sja_active_profile_id",
   API_KEY: "sja_api_key",
@@ -250,6 +251,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           const saved = await saveProfile(profile);
           await setActiveProfileId(saved.id);
           sendResponse({ ok: true, data: saved });
+          break;
+        }
+        case "SAVE_JOB": {
+          // From the in-page Save-job button. Re-saving the same posting
+          // replaces the old capture instead of duplicating it.
+          const job = message.job;
+          if (!job?.url || !job?.title) {
+            sendResponse({ ok: false, error: "Nothing captured on this page." });
+            break;
+          }
+          const d = await get([KEYS.SAVED_JOBS]);
+          const jobs = (d[KEYS.SAVED_JOBS] || []).filter((j) => j.url !== job.url);
+          jobs.unshift(job);
+          await set({ [KEYS.SAVED_JOBS]: jobs.slice(0, 50) });
+          sendResponse({ ok: true, count: jobs.length });
           break;
         }
         case "TRIGGER_AUTOFILL": {
