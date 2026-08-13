@@ -110,29 +110,17 @@
       .detail-name { font-size: 18px; font-weight: 800; color: var(--navy); padding: 14px 20px 0; }
       .detail-hint { font-size: 12px; color: var(--gray); padding: 2px 20px 6px; }
 
-      /* Read-only mirror of the editor's form: labelled boxes in a grid.
-         Clicking a box copies its value. */
-      .form-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-        padding: 0 20px 10px;
+      .row {
+        padding: 8px 20px; cursor: pointer;
+        border-top: 1px solid var(--line-soft);
       }
-      .fgroup { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-      .fgroup.full { grid-column: 1 / -1; }
-      .flabel { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); }
-      .fvalue {
-        border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF;
-        padding: 7px 10px; font-size: 13px; cursor: pointer;
-        white-space: pre-wrap; word-break: break-word;
-      }
-      .fvalue:hover { border-color: var(--navy); background: var(--blue); }
+      .row:hover { background: var(--blue); }
+      .row-label { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray); }
+      .row-value { font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
 
-      .entry-card {
-        border: 1px solid var(--line); border-radius: 12px;
-        margin: 0 20px 10px; padding: 12px; background: #FFFDF8;
-      }
-      .entry-card .form-grid { padding: 0; }
-      .entry-head { font-weight: 800; font-size: 14px; color: var(--navy); }
-      .entry-sub { font-size: 12px; color: var(--gray); margin-bottom: 8px; }
+      .entry { border-top: 1px solid var(--line); }
+      .entry-head { padding: 10px 20px 2px; font-weight: 800; font-size: 14px; color: var(--navy); }
+      .entry-sub { padding: 0 20px 4px; font-size: 12px; color: var(--gray); }
 
       .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 20px 12px; }
       .chip {

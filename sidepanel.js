@@ -189,32 +189,18 @@ function renderMenu() {
 
 // ── detail view ──────────────────────────────────────────────────────────────
 
-/** A labelled read-only box, laid out like the editor's form field; clicking
- *  the box copies its value. `full` spans both grid columns. */
-function fieldBox(label, value, full = false) {
+function copyRow(label, value) {
   if (!value || !String(value).trim()) return null;
-  const g = el(`
-    <div class="fgroup ${full ? "full" : ""}">
-      <div class="flabel">${esc(label)}</div>
-      <div class="fvalue" title="Click to copy">${esc(value)}</div>
+  const r = el(`
+    <div class="row" title="Click to copy">
+      <div class="row-label">${esc(label)}</div>
+      <div class="row-value">${esc(value)}</div>
     </div>`);
-  const box = g.querySelector(".fvalue");
-  box.addEventListener("click", async (e) => {
+  r.addEventListener("click", async (e) => {
     await copyText(String(value));
-    copied(box, e.clientX, e.clientY);
+    copied(r, e.clientX, e.clientY);
   });
-  return g;
-}
-
-/** A grid of field boxes; returns null when every field was empty. */
-function formGrid(fields) {
-  const grid = el(`<div class="form-grid"></div>`);
-  for (const f of fields) {
-    if (!f) continue;
-    const [label, value, full] = f;
-    append(grid, fieldBox(label, value, full));
-  }
-  return grid.children.length ? grid : null;
+  return r;
 }
 
 function chips(values) {
@@ -250,82 +236,76 @@ function renderDetail(p) {
 
   const per = p.personal || {};
   const addr = per.address || {};
-  main.appendChild(el(`<div class="label">Personal information</div>`));
-  append(main, formGrid([
-    ["First name", per.firstName],
-    ["Last name", per.lastName],
-    ["Full name", [per.firstName, per.lastName].filter(Boolean).join(" "), true],
-    ["Email", per.email, true],
-    ["Phone", per.phone],
-    ["City", addr.city],
-    ["Street", addr.street],
-    ["State / ZIP", [addr.state, addr.zip].filter(Boolean).join(" ")],
-    ["Country", addr.country],
-    ["Full address", [addr.street, addr.city, addr.state, addr.zip, addr.country].filter(Boolean).join(", "), true],
-    ["LinkedIn", per.linkedIn, true],
-    ["Website", per.website, true],
-    ["GitHub", per.github, true],
-  ]));
+  main.appendChild(el(`<div class="label">Contact</div>`));
+  append(main, copyRow("Full name", [per.firstName, per.lastName].filter(Boolean).join(" ")));
+  append(main, copyRow("First name", per.firstName));
+  append(main, copyRow("Last name", per.lastName));
+  append(main, copyRow("Email", per.email));
+  append(main, copyRow("Phone", per.phone));
+  append(main, copyRow("Address", [addr.street, addr.city, addr.state, addr.zip, addr.country].filter(Boolean).join(", ")));
+  append(main, copyRow("City", addr.city));
+  append(main, copyRow("LinkedIn", per.linkedIn));
+  append(main, copyRow("Website", per.website));
+  append(main, copyRow("GitHub", per.github));
 
   if (p.summary?.trim()) {
     main.appendChild(el(`<div class="label">Summary</div>`));
-    append(main, formGrid([["Professional summary", p.summary, true]]));
+    append(main, copyRow("Professional summary", p.summary));
   }
 
   if (p.experience?.length) {
     main.appendChild(el(`<div class="label">Work experience</div>`));
     for (const x of p.experience) {
-      const card = el(`<div class="entry-card"></div>`);
-      card.appendChild(el(`<div class="entry-head">${esc(x.title || "Role")}</div>`));
-      card.appendChild(el(`<div class="entry-sub">${esc([x.company, fmtDates(x)].filter(Boolean).join(" · "))}</div>`));
-      append(card, formGrid([
-        ["Company", x.company],
-        ["Title", x.title],
-        ["Location", x.location],
-        ["Dates", fmtDates(x)],
-        ["Start date", x.startDate],
-        ["End date", x.isCurrent ? "Present" : x.endDate],
-        ["Description", x.description, true],
-      ]));
-      main.appendChild(card);
+      const entry = el(`<div class="entry"></div>`);
+      entry.appendChild(el(`<div class="entry-head">${esc(x.title || "Role")}</div>`));
+      entry.appendChild(el(`<div class="entry-sub">${esc([x.company, fmtDates(x)].filter(Boolean).join(" · "))}</div>`));
+      append(entry, copyRow("Company", x.company));
+      append(entry, copyRow("Title", x.title));
+      append(entry, copyRow("Location", x.location));
+      append(entry, copyRow("Dates", fmtDates(x)));
+      append(entry, copyRow("Description", x.description));
+      main.appendChild(entry);
     }
   }
 
   if (p.education?.length) {
     main.appendChild(el(`<div class="label">Education</div>`));
     for (const x of p.education) {
-      const card = el(`<div class="entry-card"></div>`);
-      card.appendChild(el(`<div class="entry-head">${esc(x.institution || "School")}</div>`));
-      card.appendChild(el(`<div class="entry-sub">${esc([x.degree, x.field, fmtDates(x)].filter(Boolean).join(" · "))}</div>`));
-      append(card, formGrid([
-        ["Institution", x.institution],
-        ["Degree", x.degree],
-        ["Field of study", x.field],
-        ["GPA", x.gpa],
-        ["Start date", x.startDate],
-        ["End date", x.isCurrent ? "Present" : x.endDate],
-        ["Honors", x.honors, true],
-      ]));
-      main.appendChild(card);
+      const entry = el(`<div class="entry"></div>`);
+      entry.appendChild(el(`<div class="entry-head">${esc(x.institution || "School")}</div>`));
+      entry.appendChild(el(`<div class="entry-sub">${esc([x.degree, x.field, fmtDates(x)].filter(Boolean).join(" · "))}</div>`));
+      append(entry, copyRow("Institution", x.institution));
+      append(entry, copyRow("Degree", x.degree));
+      append(entry, copyRow("Field of study", x.field));
+      append(entry, copyRow("GPA", x.gpa));
+      append(entry, copyRow("Dates", fmtDates(x)));
+      append(entry, copyRow("Honors", x.honors));
+      main.appendChild(entry);
     }
   }
 
   const sk = p.skills || {};
   if (sk.technical?.length || sk.languages?.length || sk.other?.length) {
     main.appendChild(el(`<div class="label">Skills</div>`));
-    append(main, formGrid([
-      sk.technical?.length ? ["All technical skills", sk.technical.join(", "), true] : null,
-      sk.languages?.length ? ["All languages", sk.languages.join(", "), true] : null,
-      sk.other?.length ? ["All other skills", sk.other.join(", "), true] : null,
-    ]));
-    append(main, chips([...(sk.technical ?? []), ...(sk.languages ?? []), ...(sk.other ?? [])]));
+    if (sk.technical?.length) {
+      append(main, copyRow("All technical skills", sk.technical.join(", ")));
+      append(main, chips(sk.technical));
+    }
+    if (sk.languages?.length) {
+      append(main, copyRow("All languages", sk.languages.join(", ")));
+      append(main, chips(sk.languages));
+    }
+    if (sk.other?.length) {
+      append(main, copyRow("All other skills", sk.other.join(", ")));
+      append(main, chips(sk.other));
+    }
   }
 
   if (p.certifications?.length) {
     main.appendChild(el(`<div class="label">Certifications</div>`));
-    append(main, formGrid(
-      p.certifications.map((c) => [c.issuer || "Certification", [c.name, c.date].filter(Boolean).join(" · "), true])
-    ));
+    for (const c of p.certifications) {
+      append(main, copyRow(c.issuer || "Certification", [c.name, c.date].filter(Boolean).join(" · ")));
+    }
   }
 
   main.appendChild(el(`<div class="foot"></div>`));
