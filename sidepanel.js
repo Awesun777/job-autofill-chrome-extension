@@ -14,7 +14,33 @@ let activeId = null;
 let view = { name: "home" }; // or { name: "detail", id }
 
 const main = document.getElementById("main");
+const dock = document.getElementById("dock");
 document.getElementById("ver").textContent = "v" + chrome.runtime.getManifest().version;
+
+// ── autofill ─────────────────────────────────────────────────────────────────
+// Same job as the old Fill tab, but done directly from the panel: find the
+// active tab in THIS window (the panel is docked in it, so no ambiguity about
+// which window is "current") and hand the profile to the content script. If
+// the page was loaded before the extension (no listener yet), inject
+// content.js and retry once.
+
+async function doAutofill() {
+  const profile = profiles.find((p) => p.id === activeId) || profiles[0];
+  if (!profile) throw new Error("No resume selected. Create one via Manage profiles.");
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("No active tab found.");
+  if (!/^https?:/.test(tab.url ?? "")) {
+    throw new Error("Open the job application page in this window first.");
+  }
+  const send = () => chrome.tabs.sendMessage(tab.id, { type: "DO_AUTOFILL", profile });
+  try {
+    await send();
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+    await new Promise((r) => setTimeout(r, 150));
+    await send();
+  }
+}
 
 // ── data ─────────────────────────────────────────────────────────────────────
 
@@ -87,12 +113,11 @@ function initials(p) {
 
 function renderHome() {
   main.innerHTML = "";
+  main.classList.add("docked");
+  renderDock();
 
   if (!profiles.length) {
     main.appendChild(el(`<div class="empty">No resumes yet.<br/>Use “Manage profiles” below to upload or create one.</div>`));
-    const foot = el(`<div class="actions"></div>`);
-    foot.appendChild(manageBtn());
-    main.appendChild(foot);
     return;
   }
 
@@ -123,26 +148,32 @@ function renderHome() {
     list.appendChild(block);
   }
   main.appendChild(list);
+}
 
-  const banner = el(`<div class="banner" id="banner"></div>`);
-  const actions = el(`<div class="actions"></div>`);
+// The menu floats centered at the bottom, over the scrolling list.
+function renderDock() {
+  dock.hidden = false;
+  dock.innerHTML = "";
+
+  const banner = el(`<div class="banner"></div>`);
   const fill = el(`<button class="btn-primary">Autofill this page</button>`);
-  fill.addEventListener("click", () => {
+  fill.addEventListener("click", async () => {
     fill.disabled = true;
     fill.textContent = "Filling…";
-    chrome.runtime.sendMessage({ type: "TRIGGER_AUTOFILL", profileId: activeId }, (res) => {
-      fill.disabled = false;
-      fill.textContent = "Autofill this page";
-      banner.className = res?.ok ? "banner ok" : "banner err";
-      banner.textContent = res?.ok
-        ? "Autofill sent — check the page."
-        : res?.error || "Autofill failed. Is the job page the active tab?";
-    });
+    try {
+      await doAutofill();
+      banner.className = "banner ok";
+      banner.textContent = "Fields filled — review and submit.";
+    } catch (e) {
+      banner.className = "banner err";
+      banner.textContent = e?.message || "Could not autofill this page.";
+    }
+    fill.disabled = false;
+    fill.textContent = "Autofill this page";
   });
-  actions.appendChild(fill);
-  actions.appendChild(manageBtn());
-  main.appendChild(banner);
-  main.appendChild(actions);
+  if (profiles.length) dock.appendChild(fill);
+  dock.appendChild(manageBtn());
+  dock.appendChild(banner);
 }
 
 function manageBtn() {
@@ -190,6 +221,8 @@ function append(parent, node) { if (node) parent.appendChild(node); }
 
 function renderDetail(p) {
   main.innerHTML = "";
+  main.classList.remove("docked");
+  dock.hidden = true;
 
   const back = el(`<div class="backrow">← Resumes</div>`);
   back.addEventListener("click", () => { view = { name: "home" }; render(); });

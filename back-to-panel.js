@@ -5,9 +5,9 @@
   btn.textContent = "← Back";
   btn.style.cssText =
     "position:fixed;top:8px;right:8px;z-index:99999;padding:5px 12px;" +
-    "border:1px solid #334155;border-radius:8px;background:#1e293b;" +
-    "color:#f1f5f9;font:600 12px -apple-system,system-ui,sans-serif;" +
-    "cursor:pointer;opacity:.9;";
+    "border:1px solid #E7DFD2;border-radius:8px;background:#FFFDF8;" +
+    "color:#173F6B;font:700 12px 'Nunito Sans',-apple-system,system-ui,sans-serif;" +
+    "cursor:pointer;opacity:.95;";
   btn.addEventListener("mouseenter", () => { btn.style.opacity = "1"; });
   btn.addEventListener("mouseleave", () => { btn.style.opacity = ".9"; });
   btn.addEventListener("click", () => { location.href = "sidepanel.html"; });

@@ -8543,7 +8543,7 @@
     }
   }
   function App() {
-    const [tab, setTab] = (0, import_react.useState)("autofill");
+    const [tab, setTab] = (0, import_react.useState)("profiles");
     const [profiles, setProfiles] = (0, import_react.useState)([]);
     const [activeId, setActiveId] = (0, import_react.useState)(null);
     const [editingProfile, setEditingProfile] = (0, import_react.useState)(null);
