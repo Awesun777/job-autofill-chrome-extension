@@ -18,5 +18,15 @@
     fill.textContent = "Fill";
     fill.addEventListener("click", () => { location.href = "sidepanel.html"; });
     tabs.prepend(fill);
+
+    // Match the panel's header lockup: dog mark + two-tone "Smart JobFill"
+    // instead of the React app's ⚡ square + plain text.
+    const logo = document.querySelector(".header-logo");
+    if (logo) {
+      logo.innerHTML =
+        '<img src="icons/icon48.png" alt="" style="height:24px" />' +
+        '<span style="font-weight:800;font-size:16px">' +
+        '<span style="color:#173F6B">Smart</span> <span style="color:#A63D4A">JobFill</span></span>';
+    }
   }, 50);
 })();

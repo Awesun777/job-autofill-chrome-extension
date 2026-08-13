@@ -129,6 +129,31 @@
       }
       .chip:hover { border-color: var(--navy); background: var(--blue); }
 
+      /* ── Additional information: user-added fields + inline add form ── */
+      .xrow { display: flex; align-items: flex-start; }
+      .xrow .row { flex: 1; min-width: 0; }
+      .xdel {
+        border: 0; background: none; color: var(--gray); cursor: pointer;
+        font-size: 14px; padding: 10px 12px 0 0; line-height: 1;
+      }
+      .xdel:hover { color: var(--burgundy); }
+      .addform { display: flex; flex-direction: column; gap: 6px; padding: 6px 20px 4px; }
+      .addform input {
+        border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF;
+        padding: 7px 10px; font: inherit; font-size: 13px; color: var(--charcoal);
+      }
+      .addform input:focus { outline: none; border-color: var(--navy); }
+      .addform-btns { display: flex; gap: 8px; }
+      .btn-small {
+        padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line);
+        background: transparent; color: var(--gray);
+        font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
+      }
+      .btn-small:hover { color: var(--navy); border-color: var(--navy); }
+      .btn-small.primary { background: var(--navy); border-color: var(--navy); color: var(--cream); }
+      .btn-small.primary:hover { background: #1d4d82; }
+      .addwrap { padding: 6px 20px 0; }
+
       .foot { padding: 14px 20px 20px; }
 
       #toast {

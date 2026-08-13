@@ -308,7 +308,71 @@ function renderDetail(p) {
     }
   }
 
+  renderExtraSection(p);
+
   main.appendChild(el(`<div class="foot"></div>`));
+}
+
+// ── additional information ───────────────────────────────────────────────────
+// User-added fields (website, portfolio, visa status, salary expectation …)
+// stored as `extra` on the profile object itself. The React editor deep-clones
+// whole profiles, so the key survives edits made over there.
+
+async function saveExtra(profileId, extra) {
+  const d = await chrome.storage.local.get([KEYS.PROFILES]);
+  const all = d[KEYS.PROFILES] || [];
+  const target = all.find((x) => x.id === profileId);
+  if (!target) return;
+  target.extra = extra;
+  target.updatedAt = new Date().toISOString();
+  await chrome.storage.local.set({ [KEYS.PROFILES]: all });
+  // storage.onChanged re-loads and re-renders the open detail view.
+}
+
+function renderExtraSection(p) {
+  main.appendChild(el(`<div class="label">Additional information</div>`));
+  const extra = Array.isArray(p.extra) ? p.extra : [];
+
+  for (const f of extra) {
+    const wrap = el(`<div class="xrow"></div>`);
+    const row = copyRow(f.label || "Field", f.value);
+    if (row) wrap.appendChild(row);
+    const del = el(`<button class="xdel" title="Remove this field">✕</button>`);
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      saveExtra(p.id, extra.filter((x) => x.id !== f.id));
+    });
+    wrap.appendChild(del);
+    main.appendChild(wrap);
+  }
+
+  const addWrap = el(`<div class="addwrap"></div>`);
+  const addBtn = el(`<button class="btn-small">＋ Add field</button>`);
+  addBtn.addEventListener("click", () => {
+    addWrap.innerHTML = "";
+    const form = el(`
+      <div class="addform">
+        <input type="text" placeholder="Label — e.g. Website, Visa status" />
+        <input type="text" placeholder="Value — e.g. chensun.dev" />
+        <div class="addform-btns">
+          <button class="btn-small primary">Save</button>
+          <button class="btn-small">Cancel</button>
+        </div>
+      </div>`);
+    const [labelIn, valueIn] = form.querySelectorAll("input");
+    const [saveBtn, cancelBtn] = form.querySelectorAll("button");
+    saveBtn.addEventListener("click", () => {
+      const label = labelIn.value.trim();
+      const value = valueIn.value.trim();
+      if (!label || !value) return;
+      saveExtra(p.id, [...extra, { id: crypto.randomUUID(), label, value }]);
+    });
+    cancelBtn.addEventListener("click", () => render());
+    addWrap.appendChild(form);
+    labelIn.focus();
+  });
+  addWrap.appendChild(addBtn);
+  main.appendChild(addWrap);
 }
 
 // ── render ───────────────────────────────────────────────────────────────────

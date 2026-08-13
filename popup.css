@@ -46,10 +46,12 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--surface);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+/* Real panels are ~380px wide; in a wide window keep the app centered. */
+#root { max-width: 520px; margin: 0 auto; }
 .header-logo {
   display: flex;
   align-items: center;

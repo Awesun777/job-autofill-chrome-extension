@@ -604,13 +604,15 @@
       const style = document.createElement("style");
       style.id = "sja-styles";
       style.textContent = `
+      /* RomainTalk palette: cream #FFFDF8, hairline #E7DFD2, navy #173F6B,
+         charcoal #252321, gray #6F6A64, green #2F9E44 — matches the panel. */
       .sja-suggest-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 20px;
         height: 20px;
-        background: #6366f1;
+        background: #173F6B;
         color: white;
         border: none;
         border-radius: 4px;
@@ -631,14 +633,14 @@
       .sja-dropdown {
         position: fixed;
         z-index: 999999;
-        background: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 8px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        background: #FFFDF8;
+        border: 1px solid #E7DFD2;
+        border-radius: 10px;
+        box-shadow: 0 10px 28px -10px rgba(37,35,33,0.35);
         min-width: 280px;
         max-width: 400px;
         overflow: hidden;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       }
       .sja-dropdown-item {
         padding: 8px 12px;
@@ -646,19 +648,19 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        border-bottom: 1px solid #273549;
+        border-bottom: 1px solid #EFE2CE;
         transition: background 0.1s;
       }
       .sja-dropdown-item:last-child { border-bottom: none; }
-      .sja-dropdown-item:hover { background: rgba(99,102,241,0.15); }
+      .sja-dropdown-item:hover { background: #DCECF8; }
       .sja-dropdown-label {
         font-size: 12px;
-        font-weight: 600;
-        color: #818cf8;
+        font-weight: 700;
+        color: #173F6B;
       }
       .sja-dropdown-preview {
         font-size: 11px;
-        color: #94a3b8;
+        color: #6F6A64;
         line-height: 1.4;
         white-space: nowrap;
         overflow: hidden;
@@ -667,51 +669,51 @@
       .sja-dropdown-header {
         padding: 6px 12px;
         font-size: 10px;
-        font-weight: 600;
-        color: #64748b;
+        font-weight: 700;
+        color: #6F6A64;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        border-bottom: 1px solid #273549;
+        border-bottom: 1px solid #EFE2CE;
       }
       .sja-exp-item { flex-direction: row !important; align-items: flex-start; gap: 6px; }
-      .sja-exp-title { font-size: 12px; font-weight: 600; color: #e2e8f0; }
-      .sja-exp-meta { font-size: 11px; color: #818cf8; }
+      .sja-exp-title { font-size: 12px; font-weight: 700; color: #252321; }
+      .sja-exp-meta { font-size: 11px; color: #173F6B; }
       .sja-exp-edit-btn {
-        background: none; border: none; color: #475569; cursor: pointer;
+        background: none; border: none; color: #6F6A64; cursor: pointer;
         font-size: 13px; padding: 0; flex-shrink: 0; align-self: center; line-height: 1;
       }
-      .sja-exp-edit-btn:hover { color: #818cf8; }
+      .sja-exp-edit-btn:hover { color: #173F6B; }
       .sja-back-btn {
-        display: block; background: none; border: none; color: #818cf8;
+        display: block; background: none; border: none; color: #173F6B;
         cursor: pointer; font-size: 11px; padding: 5px 12px; text-align: left;
-        width: 100%; border-bottom: 1px solid #273549;
+        width: 100%; border-bottom: 1px solid #EFE2CE;
       }
-      .sja-back-btn:hover { color: #e2e8f0; }
+      .sja-back-btn:hover { color: #252321; }
       .sja-field-item { flex-direction: row !important; align-items: center; gap: 8px; }
-      .sja-field-item--done { background: rgba(34,197,94,0.08) !important; }
-      .sja-field-item--done .sja-field-label { color: #22c55e; }
+      .sja-field-item--done { background: rgba(47,158,68,0.08) !important; }
+      .sja-field-item--done .sja-field-label { color: #2F9E44; }
       .sja-field-item--done .sja-field-check { opacity: 1; }
-      .sja-field-label { font-size: 11px; font-weight: 600; color: #94a3b8; min-width: 72px; flex-shrink: 0; }
-      .sja-field-val { font-size: 11px; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-      .sja-field-check { font-size: 12px; color: #22c55e; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+      .sja-field-label { font-size: 11px; font-weight: 700; color: #6F6A64; min-width: 72px; flex-shrink: 0; }
+      .sja-field-val { font-size: 11px; color: #252321; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+      .sja-field-check { font-size: 12px; color: #2F9E44; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
       .sja-fill-btn {
         display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 7px;
-        background: #6366f1; color: #fff; border: none; border-radius: 6px;
-        font-size: 12px; font-weight: 600; cursor: pointer;
+        background: #173F6B; color: #fff; border: none; border-radius: 8px;
+        font-size: 12px; font-weight: 700; cursor: pointer;
       }
-      .sja-fill-btn:hover { background: #4f46e5; }
+      .sja-fill-btn:hover { background: #1d4d82; }
       .sja-fill-btn:disabled { opacity: 0.6; cursor: default; }
       .sja-edit-group { padding: 3px 12px; }
       .sja-edit-label {
-        display: block; font-size: 10px; font-weight: 600; color: #64748b;
+        display: block; font-size: 10px; font-weight: 700; color: #6F6A64;
         text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;
       }
       .sja-edit-input {
-        width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #334155;
-        border-radius: 4px; color: #e2e8f0; font-size: 12px; padding: 4px 6px;
+        width: 100%; box-sizing: border-box; background: #FFFFFF; border: 1px solid #E7DFD2;
+        border-radius: 6px; color: #252321; font-size: 12px; padding: 4px 6px;
         font-family: inherit; resize: vertical;
       }
-      .sja-edit-input:focus { outline: none; border-color: #6366f1; }
+      .sja-edit-input:focus { outline: none; border-color: #173F6B; }
     `;
       document.head.appendChild(style);
     }
