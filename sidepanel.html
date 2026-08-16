@@ -161,7 +161,14 @@
       }
       .job-title { font-weight: 800; font-size: 14px; color: var(--navy); }
       .job-meta { font-size: 11.5px; color: var(--gray); margin-top: 2px; }
-      .job-btns { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+      .job-btns { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+      .cat-select {
+        flex: 1; min-width: 9rem; padding: 6px 8px;
+        border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF;
+        font: inherit; font-size: 12.5px; color: var(--charcoal); cursor: pointer;
+      }
+      .cat-select:focus { outline: none; border-color: var(--navy); }
+      .job-meta b { color: var(--green); }
 
       .foot { padding: 14px 20px 20px; }
 

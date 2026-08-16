@@ -7,10 +7,15 @@
 //           read-only: click any field/chip to copy it.
 // Editing still happens in the original React app via "Manage profiles".
 
-const KEYS = { PROFILES: "sja_profiles", ACTIVE_ID: "sja_active_profile_id", SAVED_JOBS: "sja_saved_jobs" };
+const KEYS = {
+  PROFILES: "sja_profiles", ACTIVE_ID: "sja_active_profile_id", SAVED_JOBS: "sja_saved_jobs",
+  SHEET_WEBHOOK: "sja_sheet_webhook", SHEET_CATS: "sja_sheet_categories",
+};
 
 let profiles = [];
 let savedJobs = [];
+let sheetWebhook = "";
+let sheetCats = [];
 let activeId = null;
 let view = { name: "home" }; // or { name: "detail", id } or { name: "jobs" }
 
@@ -46,9 +51,11 @@ async function doAutofill() {
 // ── data ─────────────────────────────────────────────────────────────────────
 
 async function load() {
-  const d = await chrome.storage.local.get([KEYS.PROFILES, KEYS.ACTIVE_ID, KEYS.SAVED_JOBS]);
+  const d = await chrome.storage.local.get([KEYS.PROFILES, KEYS.ACTIVE_ID, KEYS.SAVED_JOBS, KEYS.SHEET_WEBHOOK, KEYS.SHEET_CATS]);
   profiles = d[KEYS.PROFILES] || [];
   savedJobs = d[KEYS.SAVED_JOBS] || [];
+  sheetWebhook = d[KEYS.SHEET_WEBHOOK] || "";
+  sheetCats = d[KEYS.SHEET_CATS] || [];
   activeId = d[KEYS.ACTIVE_ID] || profiles[0]?.id || null;
   // If the profile being viewed was deleted in the editor, fall back home.
   if (view.name === "detail" && !profiles.some((p) => p.id === view.id)) view = { name: "home" };
@@ -56,7 +63,7 @@ async function load() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && (changes[KEYS.PROFILES] || changes[KEYS.ACTIVE_ID] || changes[KEYS.SAVED_JOBS])) load();
+  if (area === "local" && (changes[KEYS.PROFILES] || changes[KEYS.ACTIVE_ID] || changes[KEYS.SAVED_JOBS] || changes[KEYS.SHEET_WEBHOOK] || changes[KEYS.SHEET_CATS])) load();
 });
 
 // ── shared helpers ───────────────────────────────────────────────────────────
@@ -227,8 +234,75 @@ async function saveJobs(jobs) {
   await chrome.storage.local.set({ [KEYS.SAVED_JOBS]: jobs });
 }
 
+// ── Google Sheet connection (Apps Script web app) ────────────────────────────
+// The sheet-side receiver is a bound Apps Script: GET returns the category
+// names (the gray rows), POST appends a row under the chosen category.
+
+async function fetchCategories() {
+  const res = await fetch(`${sheetWebhook}?action=categories`);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Sheet script error");
+  sheetCats = data.categories || [];
+  await chrome.storage.local.set({ [KEYS.SHEET_CATS]: sheetCats });
+}
+
+async function addToSheet(job, category) {
+  // text/plain avoids a CORS preflight, which Apps Script cannot answer.
+  const res = await fetch(sheetWebhook, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({
+      company: job.company || "",
+      position: job.title || "",
+      postDate: job.postDate || "",
+      applyDate: new Date().toLocaleDateString("en-US"),
+      category,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Sheet script error");
+  return data.row;
+}
+
+function renderSheetSetup() {
+  const box = el(`
+    <div class="addform">
+      <input type="text" placeholder="Paste your Apps Script web-app URL (…/exec)" value="${esc(sheetWebhook)}" />
+      <div class="addform-btns">
+        <button class="btn-small primary">${sheetWebhook ? "Update" : "Connect"}</button>
+        ${sheetWebhook ? '<button class="btn-small">Refresh categories</button>' : ""}
+      </div>
+    </div>`);
+  const input = box.querySelector("input");
+  const [saveBtn, refreshBtn] = box.querySelectorAll("button");
+  saveBtn.addEventListener("click", async () => {
+    const url = input.value.trim();
+    if (!url.includes("script.google.com")) { toastMsg(saveBtn, "Not an Apps Script URL"); return; }
+    sheetWebhook = url;
+    await chrome.storage.local.set({ [KEYS.SHEET_WEBHOOK]: url });
+    try { await fetchCategories(); } catch (e) { toastMsg(saveBtn, String(e.message || e)); }
+  });
+  refreshBtn?.addEventListener("click", async () => {
+    try { await fetchCategories(); } catch (e) { toastMsg(refreshBtn, String(e.message || e)); }
+  });
+  return box;
+}
+
+function toastMsg(nearEl, msg) {
+  const r = nearEl.getBoundingClientRect();
+  toast.textContent = msg;
+  toast.style.left = `${r.left}px`;
+  toast.style.top = `${Math.max(r.top - 30, 4)}px`;
+  toast.style.opacity = "1";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.style.opacity = "0"; toast.textContent = "Copied ✓"; }, 1800);
+}
+
 function renderJobs() {
   main.innerHTML = "";
+
+  main.appendChild(el(`<div class="label">Google Sheet</div>`));
+  main.appendChild(renderSheetSetup());
 
   main.appendChild(el(`<div class="label">Saved jobs</div>`));
 
@@ -242,24 +316,51 @@ function renderJobs() {
   main.appendChild(el(`<div class="hint">Click a card to copy it as AI-ready markdown</div>`));
 
   for (const j of savedJobs) {
+    const meta = [j.company, j.source, j.postDate ? `posted ${j.postDate}` : "", (j.capturedAt || "").slice(0, 10)]
+      .filter(Boolean).join(" · ");
     const card = el(`
       <div class="job">
         <div class="job-title">${esc(j.title)}</div>
-        <div class="job-meta">${esc([j.company, j.source, (j.capturedAt || "").slice(0, 10)].filter(Boolean).join(" · "))}</div>
+        <div class="job-meta">${esc(meta)}${j.sheetRow ? ` · <b>✓ in sheet (row ${j.sheetRow})</b>` : ""}</div>
         <div class="job-btns">
           <button class="btn-small primary">Copy for AI</button>
           <button class="btn-small">Outreach prompt</button>
           <button class="btn-small">Open</button>
           <button class="btn-small">✕</button>
         </div>
+        ${sheetWebhook ? `
+        <div class="job-btns">
+          <select class="cat-select">
+            ${sheetCats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
+          </select>
+          <button class="btn-small primary">${j.sheetRow ? "Add again" : "Add to Sheet"}</button>
+        </div>` : ""}
       </div>`);
-    const [copyBtn, promptBtn, openBtn, delBtn] = card.querySelectorAll("button");
+    const [copyBtn, promptBtn, openBtn, delBtn, sheetBtn] = card.querySelectorAll("button");
+    const catSel = card.querySelector(".cat-select");
     const copyCard = async (text, e) => { await copyText(text); copied(card, e.clientX, e.clientY); };
-    card.addEventListener("click", (e) => { if (!(e.target instanceof HTMLButtonElement)) copyCard(jobMarkdown(j), e); });
+    card.addEventListener("click", (e) => {
+      if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLSelectElement) return;
+      copyCard(jobMarkdown(j), e);
+    });
     copyBtn.addEventListener("click", (e) => copyCard(jobMarkdown(j), e));
     promptBtn.addEventListener("click", (e) => copyCard(outreachPrompt(j), e));
     openBtn.addEventListener("click", () => chrome.tabs.create({ url: j.url }));
     delBtn.addEventListener("click", () => saveJobs(savedJobs.filter((x) => x.id !== j.id)));
+    sheetBtn?.addEventListener("click", async () => {
+      if (!sheetCats.length) { toastMsg(sheetBtn, "No categories — hit Refresh categories"); return; }
+      sheetBtn.disabled = true;
+      sheetBtn.textContent = "Adding…";
+      try {
+        const row = await addToSheet(j, catSel.value);
+        await saveJobs(savedJobs.map((x) => (x.id === j.id ? { ...x, sheetRow: row, category: catSel.value } : x)));
+      } catch (e) {
+        sheetBtn.disabled = false;
+        sheetBtn.textContent = "Add to Sheet";
+        toastMsg(sheetBtn, String(e.message || e));
+      }
+    });
+    if (catSel && j.category && sheetCats.includes(j.category)) catSel.value = j.category;
     main.appendChild(card);
   }
 }

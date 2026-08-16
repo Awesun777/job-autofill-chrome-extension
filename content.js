@@ -756,8 +756,24 @@
 
     function extractJobPosting() {
       const meta = (sel) => document.querySelector(`meta[property="${sel}"], meta[name="${sel}"]`)?.content?.trim();
-      const title = document.querySelector("h1")?.innerText.trim() || meta("og:title") || document.title.trim();
-      const company = meta("og:site_name") || location.hostname.replace(/^www\./, "");
+      let title = document.querySelector("h1")?.innerText.trim() || meta("og:title") || document.title.trim();
+      let company = meta("og:site_name") || location.hostname.replace(/^www\./, "");
+      let postDate = "";
+      // Most ATS pages embed schema.org JobPosting JSON-LD — the most reliable
+      // source for the real employer name and the posting date.
+      for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+        try {
+          const parsed = JSON.parse(s.textContent);
+          for (const o of Array.isArray(parsed) ? parsed : [parsed]) {
+            const t = o["@type"];
+            if (t === "JobPosting" || (Array.isArray(t) && t.includes("JobPosting"))) {
+              if (o.title) title = String(o.title).trim();
+              if (o.hiringOrganization?.name) company = String(o.hiringOrganization.name).trim();
+              if (o.datePosted) postDate = String(o.datePosted).slice(0, 10);
+            }
+          }
+        } catch { /* malformed JSON-LD is common; ignore */ }
+      }
       // The description is the biggest description-ish block; whole body as a
       // last resort. Raw text on purpose — the AI reading it does the parsing.
       let best = "";
@@ -768,7 +784,7 @@
       if (best.length < 200) best = document.body.innerText.trim();
       return {
         id: crypto.randomUUID(),
-        title, company,
+        title, company, postDate,
         url: location.href.split("#")[0],
         source: location.hostname.replace(/^www\./, ""),
         capturedAt: new Date().toISOString(),
