@@ -252,12 +252,15 @@ async function fetchCategories() {
 }
 
 async function addToSheet(job, category) {
+  // Same entity-code cleanup the capture applies, so jobs saved before the
+  // fix still land in the sheet with a clean company name.
+  const company = String(job.company || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim();
   // text/plain avoids a CORS preflight, which Apps Script cannot answer.
   const res = await fetch(sheetWebhook, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({
-      company: job.company || "",
+      company,
       position: job.title || "",
       postDate: job.postDate || "",
       applyDate: new Date().toLocaleDateString("en-US"),

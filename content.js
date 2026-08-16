@@ -754,6 +754,13 @@
       return applyish && jobish;
     }
 
+    // ATS feeds often prefix the employer with an internal entity code
+    // ("5006 Deutsche Bank"). Strip a leading 3+ digit code so real numeric
+    // brands (3M, 7-Eleven, 23andMe) are left alone.
+    function cleanCompany(name) {
+      return String(name || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim();
+    }
+
     function extractJobPosting() {
       const meta = (sel) => document.querySelector(`meta[property="${sel}"], meta[name="${sel}"]`)?.content?.trim();
       let title = document.querySelector("h1")?.innerText.trim() || meta("og:title") || document.title.trim();
@@ -784,7 +791,7 @@
       if (best.length < 200) best = document.body.innerText.trim();
       return {
         id: crypto.randomUUID(),
-        title, company, postDate,
+        title, company: cleanCompany(company), postDate,
         url: location.href.split("#")[0],
         source: location.hostname.replace(/^www\./, ""),
         capturedAt: new Date().toISOString(),
