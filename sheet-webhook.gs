@@ -6,9 +6,12 @@
  *   POST {company, position, postDate, applyDate, category}
  *        → appends a row at the end of that category's section.
  *
- * A category row = column B has text, column C is empty, and the B cell has a
- * non-white background (the gray band). Data columns: B=Company, C=Position,
- * D=Posted Date, E=Applied Date. Column A (status chips) is left untouched.
+ * A category row = column A has text, column B (Company) is empty, and the A
+ * cell has a non-white background (the gray band). Data rows keep status chips
+ * in A. Data columns: B=Company, C=Position, D=Posted Date, E=Applied Date.
+ *
+ * DEPLOYED as Version 3 (2026-08-16) at:
+ * https://script.google.com/macros/s/AKfycbx8UQW40PMfKpi8_mwJGkicY-jGEow5Op2s8lNku2vzcWvjKX-dZhI_lEMknbSbrKmo/exec
  */
 
 const SHEET_NAME = "2026";
@@ -19,15 +22,15 @@ function categories_() {
   const last = sh.getLastRow();
   const n = last - HEADER_ROW;
   if (n <= 0) return [];
-  const vals = sh.getRange(HEADER_ROW + 1, 2, n, 2).getValues();       // B,C
-  const bgs = sh.getRange(HEADER_ROW + 1, 2, n, 1).getBackgrounds();   // B
+  const vals = sh.getRange(HEADER_ROW + 1, 1, n, 2).getValues();       // A,B
+  const bgs = sh.getRange(HEADER_ROW + 1, 1, n, 1).getBackgrounds();   // A
   const cats = [];
   for (let i = 0; i < n; i++) {
-    const b = String(vals[i][0]).trim();
-    const c = String(vals[i][1]).trim();
+    const a = String(vals[i][0]).trim();
+    const b = String(vals[i][1]).trim();
     const bg = String(bgs[i][0]).toLowerCase();
-    if (b && !c && bg !== "#ffffff" && bg !== "white") {
-      cats.push({ name: b, row: HEADER_ROW + 1 + i });
+    if (a && !b && bg !== "#ffffff" && bg !== "white") {
+      cats.push({ name: a, row: HEADER_ROW + 1 + i });
     }
   }
   return cats;
@@ -69,9 +72,10 @@ function doPost(e) {
     }
     let target = lastData + 1;
     if (target >= nextCatRow && idx + 1 < cats.length) {
-      // Section is full — grow it so the next category keeps its own row.
-      sh.insertRowBefore(nextCatRow);
-      target = nextCatRow;
+      // Section is full — grow it. Inserting after the last data row (not
+      // before the category row) inherits data-row formatting, not the band.
+      sh.insertRowAfter(lastData);
+      target = lastData + 1;
     }
     sh.getRange(target, 2, 1, 4).setValues([[
       data.company || "", data.position || "", data.postDate || "", data.applyDate || "",
