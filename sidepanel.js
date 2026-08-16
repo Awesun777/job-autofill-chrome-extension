@@ -12,6 +12,11 @@ const KEYS = {
   SHEET_WEBHOOK: "sja_sheet_webhook", SHEET_CATS: "sja_sheet_categories",
 };
 
+// The Job Tracker sheet's Apps Script web app (deployed from sheet-webhook.gs).
+// Baked in so the sheet connection works out of the box; a value stored under
+// KEYS.SHEET_WEBHOOK still overrides it if the script is ever redeployed.
+const DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbx8UQW40PMfKpi8_mwJGkicY-jGEow5Op2s8lNku2vzcWvjKX-dZhI_lEMknbSbrKmo/exec";
+
 let profiles = [];
 let savedJobs = [];
 let sheetWebhook = "";
@@ -54,7 +59,7 @@ async function load() {
   const d = await chrome.storage.local.get([KEYS.PROFILES, KEYS.ACTIVE_ID, KEYS.SAVED_JOBS, KEYS.SHEET_WEBHOOK, KEYS.SHEET_CATS]);
   profiles = d[KEYS.PROFILES] || [];
   savedJobs = d[KEYS.SAVED_JOBS] || [];
-  sheetWebhook = d[KEYS.SHEET_WEBHOOK] || "";
+  sheetWebhook = d[KEYS.SHEET_WEBHOOK] || DEFAULT_WEBHOOK;
   sheetCats = d[KEYS.SHEET_CATS] || [];
   activeId = d[KEYS.ACTIVE_ID] || profiles[0]?.id || null;
   // If the profile being viewed was deleted in the editor, fall back home.
@@ -264,28 +269,27 @@ async function addToSheet(job, category) {
   return data.row;
 }
 
-function renderSheetSetup() {
-  const box = el(`
-    <div class="addform">
-      <input type="text" placeholder="Paste your Apps Script web-app URL (…/exec)" value="${esc(sheetWebhook)}" />
-      <div class="addform-btns">
-        <button class="btn-small primary">${sheetWebhook ? "Update" : "Connect"}</button>
-        ${sheetWebhook ? '<button class="btn-small">Refresh categories</button>' : ""}
-      </div>
+// Slim status row: the connection itself is baked in, so this only reports
+// state and offers a manual refresh (e.g. after adding a category row).
+let catsFetchInFlight = false;
+function renderSheetStatus() {
+  const row = el(`
+    <div class="hint" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span>${sheetCats.length ? `✓ Connected — ${sheetCats.length} categories` : "Connecting to your Job Tracker sheet…"}</span>
+      <button class="btn-small">Refresh categories</button>
     </div>`);
-  const input = box.querySelector("input");
-  const [saveBtn, refreshBtn] = box.querySelectorAll("button");
-  saveBtn.addEventListener("click", async () => {
-    const url = input.value.trim();
-    if (!url.includes("script.google.com")) { toastMsg(saveBtn, "Not an Apps Script URL"); return; }
-    sheetWebhook = url;
-    await chrome.storage.local.set({ [KEYS.SHEET_WEBHOOK]: url });
-    try { await fetchCategories(); } catch (e) { toastMsg(saveBtn, String(e.message || e)); }
+  row.querySelector("button").addEventListener("click", async (e) => {
+    try { await fetchCategories(); } catch (err) { toastMsg(e.target, String(err.message || err)); }
   });
-  refreshBtn?.addEventListener("click", async () => {
-    try { await fetchCategories(); } catch (e) { toastMsg(refreshBtn, String(e.message || e)); }
-  });
-  return box;
+  return row;
+}
+
+// First visit to the Jobs view pulls the category list automatically.
+async function ensureCategories() {
+  if (sheetCats.length || catsFetchInFlight) return;
+  catsFetchInFlight = true;
+  try { await fetchCategories(); } catch { /* status row keeps "connecting…" */ }
+  catsFetchInFlight = false;
 }
 
 function toastMsg(nearEl, msg) {
@@ -302,7 +306,8 @@ function renderJobs() {
   main.innerHTML = "";
 
   main.appendChild(el(`<div class="label">Google Sheet</div>`));
-  main.appendChild(renderSheetSetup());
+  main.appendChild(renderSheetStatus());
+  ensureCategories();
 
   main.appendChild(el(`<div class="label">Saved jobs</div>`));
 

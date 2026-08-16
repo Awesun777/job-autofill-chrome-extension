@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Job Autofill",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Intelligently autofill job applications from your curated resume profiles. Works on Workday, Greenhouse, iCIMS, Lever, and more.",
   "permissions": [
     "storage",
