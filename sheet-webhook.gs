@@ -10,7 +10,7 @@
  * cell has a non-white background (the gray band). Data rows keep status chips
  * in A. Data columns: B=Company, C=Position, D=Posted Date, E=Applied Date.
  *
- * DEPLOYED as Version 3 (2026-08-16) at:
+ * DEPLOYED as Version 4 (2026-08-16) at:
  * https://script.google.com/macros/s/AKfycbx8UQW40PMfKpi8_mwJGkicY-jGEow5Op2s8lNku2vzcWvjKX-dZhI_lEMknbSbrKmo/exec
  */
 
@@ -70,15 +70,26 @@ function doPost(e) {
         if (String(colB[i][0]).trim()) lastData = start + 1 + i;
       }
     }
-    let target = lastData + 1;
-    if (target >= nextCatRow && idx + 1 < cats.length) {
-      // Section is full — grow it. Inserting after the last data row (not
-      // before the category row) inherits data-row formatting, not the band.
-      sh.insertRowAfter(lastData);
-      target = lastData + 1;
-    }
+    // Always insert a fresh row after the last entry; never reuse the blank
+    // padding rows a section keeps. Clear inherited backgrounds so the new
+    // row starts clean (no gray band, no copied status chip in column A).
+    sh.insertRowAfter(lastData);
+    const target = lastData + 1;
+    sh.getRange(target, 1, 1, 5).setBackground(null);
+    // Dates go in as real Date values, parsed field-by-field to dodge the
+    // UTC off-by-one of new Date("yyyy-mm-dd"); they render in the sheet's
+    // M/D/YYYY format like every hand-entered date.
+    const toDate = function (s) {
+      s = String(s || "").trim();
+      if (!s) return "";
+      let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
+      return s;
+    };
     sh.getRange(target, 2, 1, 4).setValues([[
-      data.company || "", data.position || "", data.postDate || "", data.applyDate || "",
+      data.company || "", data.position || "", toDate(data.postDate), toDate(data.applyDate),
     ]]);
     return json_({ ok: true, row: target });
   } catch (e2) {
