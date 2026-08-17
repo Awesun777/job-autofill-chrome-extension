@@ -266,11 +266,36 @@ function postSheet(body) {
   });
 }
 
+// Same entity-code cleanup the capture applies, so jobs saved before the
+// fix still land in the sheet with a clean company name.
+function cleanJobIdentity(job) {
+  return {
+    company: String(job.company || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim(),
+    position: job.title || "",
+  };
+}
+
+// Ship the full JD context + current resume snapshot to the hidden tabs the
+// outreach dashboard reads. Re-posting the same appKey overwrites in place.
+async function addToApplications(job) {
+  const { company, position } = cleanJobIdentity(job);
+  const res = await postSheet({
+    type: "context",
+    appKey: appKeyOf(company, position),
+    company, position,
+    url: job.url || "",
+    source: job.source || "",
+    postDate: job.postDate || "",
+    description: job.description || "",
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Sheet script error");
+  const active = profiles.find((p) => p.id === activeId) || profiles[0];
+  if (active) await postSheet({ type: "profile", profile: active });
+}
+
 async function addToSheet(job, category) {
-  // Same entity-code cleanup the capture applies, so jobs saved before the
-  // fix still land in the sheet with a clean company name.
-  const company = String(job.company || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim();
-  const position = job.title || "";
+  const { company, position } = cleanJobIdentity(job);
   const res = await postSheet({
     company,
     position,
@@ -281,21 +306,8 @@ async function addToSheet(job, category) {
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || "Sheet script error");
 
-  // Ship the full context + current resume snapshot for the outreach
-  // dashboard. Best-effort: a failure here must not undo the row above.
-  try {
-    await postSheet({
-      type: "context",
-      appKey: appKeyOf(company, position),
-      company, position,
-      url: job.url || "",
-      source: job.source || "",
-      postDate: job.postDate || "",
-      description: job.description || "",
-    });
-    const active = profiles.find((p) => p.id === activeId) || profiles[0];
-    if (active) await postSheet({ type: "profile", profile: active });
-  } catch { /* context sync is best-effort */ }
+  // Best-effort: a context failure must not undo the row above.
+  try { await addToApplications(job); } catch { /* context sync is best-effort */ }
 
   return data.row;
 }
@@ -402,7 +414,7 @@ function renderJobs() {
     const card = el(`
       <div class="job">
         <div class="job-title">${esc(j.title)}</div>
-        <div class="job-meta">${esc(meta)}${j.sheetRow ? ` · <b>✓ in sheet (row ${j.sheetRow})</b>` : ""}</div>
+        <div class="job-meta">${esc(meta)}${j.sheetRow ? ` · <b>✓ in sheet (row ${j.sheetRow})</b>` : ""}${j.inApps ? ` · <b>◆ in Applications</b>` : ""}</div>
         <div class="job-btns">
           <button class="btn-small primary">Copy for AI</button>
           <button class="btn-small">Outreach prompt</button>
@@ -416,9 +428,10 @@ function renderJobs() {
             ${sheetCats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}
           </select>
           <button class="btn-small primary">${j.sheetRow ? "Add again" : "Add to Sheet"}</button>
+          <button class="btn-small">${j.inApps ? "↻ Update Applications" : "→ Applications"}</button>
         </div>` : ""}
       </div>`);
-    const [copyBtn, promptBtn, openBtn, editBtn, delBtn, sheetBtn] = card.querySelectorAll("button");
+    const [copyBtn, promptBtn, openBtn, editBtn, delBtn, sheetBtn, appsBtn] = card.querySelectorAll("button");
     const catSel = card.querySelector(".cat-select");
     const copyCard = async (text, e) => { await copyText(text); copied(card, e.clientX, e.clientY); };
     card.addEventListener("click", (e) => {
@@ -461,11 +474,25 @@ function renderJobs() {
       sheetBtn.textContent = "Adding…";
       try {
         const row = await addToSheet(j, catSel.value);
-        await saveJobs(savedJobs.map((x) => (x.id === j.id ? { ...x, sheetRow: row, category: catSel.value } : x)));
+        await saveJobs(savedJobs.map((x) => (x.id === j.id ? { ...x, sheetRow: row, category: catSel.value, inApps: true } : x)));
       } catch (e) {
         sheetBtn.disabled = false;
         sheetBtn.textContent = "Add to Sheet";
         toastMsg(sheetBtn, String(e.message || e));
+      }
+    });
+    // Dashboard-only path: put the JD on the Applications page (for outreach)
+    // without logging a row in the tracker.
+    appsBtn?.addEventListener("click", async () => {
+      appsBtn.disabled = true;
+      appsBtn.textContent = "Sending…";
+      try {
+        await addToApplications(j);
+        await saveJobs(savedJobs.map((x) => (x.id === j.id ? { ...x, inApps: true } : x)));
+      } catch (e) {
+        appsBtn.disabled = false;
+        appsBtn.textContent = j.inApps ? "↻ Update Applications" : "→ Applications";
+        toastMsg(appsBtn, String(e.message || e));
       }
     });
     if (catSel && j.category && sheetCats.includes(j.category)) catSel.value = j.category;
