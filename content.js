@@ -961,8 +961,8 @@
       btn.textContent = "📇 Save";
       btn.title = "Save this person to your Connections sheet";
       btn.style.cssText =
-        "display:inline-flex;align-items:center;margin-left:10px;vertical-align:middle;" +
-        "padding:4px 12px;border:none;border-radius:999px;cursor:pointer;" +
+        "display:inline-flex;align-items:center;margin-left:8px;vertical-align:middle;" +
+        "padding:3px 10px;border:none;border-radius:999px;cursor:pointer;" +
         "background:#173F6B;color:#FFF8ED;font:700 12px 'Nunito Sans',-apple-system,system-ui,sans-serif;";
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
@@ -983,7 +983,12 @@
           }
         });
       });
-      h1.insertAdjacentElement("afterend", btn);
+      // Anchor next to the connection-tier badge ("· 3rd") — right after the
+      // name it collides with LinkedIn's own "View verification" button.
+      const card = h1.closest("section") || document.querySelector("main");
+      const tier = card && [...card.querySelectorAll("span, div")].find((el) =>
+        el.children.length === 0 && /^·?\s*(1st|2nd|3rd)\b/.test((el.innerText || "").trim()));
+      (tier || h1).insertAdjacentElement("afterend", btn);
     }
 
     if (document.readyState === "loading") {
