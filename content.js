@@ -1007,7 +1007,7 @@
       // Anchor next to the connection-tier badge ("· 3rd") — right after the
       // name it collides with LinkedIn's own "View verification" button.
       const card = h1.closest("section") || document.querySelector("main");
-      const tier = card && [...card.querySelectorAll("span, div")].find((el) =>
+      const tier = card && [...card.querySelectorAll("p, span, div, a")].find((el) =>
         el.children.length === 0 && /^·?\s*(1st|2nd|3rd)\b/.test((el.innerText || "").trim()));
       (tier || h1).insertAdjacentElement("afterend", btn);
     }
