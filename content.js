@@ -860,6 +860,27 @@
       return document.querySelector("main h1, main h2");
     }
 
+    // Common short names for employers/schools ("International Monetary
+    // Fund" -> "IMF") — mirrors COMPANY_SHORT in the outreach engine.
+    const LI_COMPANY_SHORT = [
+      [/international monetary fund/i, "IMF"], [/^miga\b|multilateral investment guarantee/i, "MIGA"],
+      [/international finance corporation/i, "IFC"], [/world bank/i, "World Bank"],
+      [/deutsche bank/i, "DB"], [/goldman sachs/i, "GS"], [/morgan stanley/i, "MS"],
+      [/j\.?p\.? ?morgan|jpmorgan/i, "JPM"], [/bank of america|merrill/i, "BofA"],
+      [/bnp paribas/i, "BNP"], [/citi(group|bank)\b/i, "Citi"], [/credit suisse/i, "CS"],
+      [/korea investment corporation/i, "KIC"], [/european bank for reconstruction/i, "EBRD"],
+      [/asian development bank/i, "ADB"], [/inter-american development bank/i, "IDB"],
+      [/united nations/i, "UN"], [/boston consulting/i, "BCG"], [/mckinsey/i, "McKinsey"],
+      [/pricewaterhousecoopers/i, "PwC"], [/ernst & young/i, "EY"], [/natixis/i, "Natixis"],
+      [/chinese university of hong kong/i, "CUHK"], [/massachusetts institute of technology/i, "MIT"],
+      [/london school of economics/i, "LSE"], [/school of international and public affairs/i, "Columbia SIPA"],
+    ];
+    function liShortCompany(name) {
+      const s = String(name || "").trim();
+      for (const [re, short] of LI_COMPANY_SHORT) if (re.test(s)) return short;
+      return s.replace(/,? (incorporated|inc|llc|ltd|corp(oration)?|company|co)\.?$/i, "").trim();
+    }
+
     function liSectionByHeading(re) {
       const head = [...document.querySelectorAll("main h2, main h3")]
         .find((el) => re.test(el.innerText.trim()));
@@ -938,11 +959,11 @@
         }
         return base.split(/[,\-]| Area/)[0].trim();
       })();
-      const past = [...new Set([...companies, ...(sideLinks[0] ? [sideLinks[0]] : []), ...schools, ...sideLinks.slice(1)])]
-        .filter((x) => x).slice(0, 10).join("; ");
+      const past = [...new Set([...companies, ...(sideLinks[0] ? [sideLinks[0]] : []), ...schools, ...sideLinks.slice(1)]
+        .map(liShortCompany))].filter((x) => x).slice(0, 10).join("; ");
       return {
         name,
-        company,
+        company: liShortCompany(company),
         title: atMatch ? headline.slice(0, atMatch.index).trim() : headline,
         pastExperience: past,
         base: baseShort,
