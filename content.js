@@ -839,14 +839,89 @@
       document.body.appendChild(btn);
     }
 
+    // ── LinkedIn connection capture ──────────────────────────────────────────
+    // A small pill next to the profile name on linkedin.com/in/* pages that
+    // saves the person into the Connections sheet (Name / Company / Title /
+    // Past experience / Base / LinkedIn URL) through the sheet webhook.
+
+    function extractLinkedInConnection() {
+      const txt = (sel) => document.querySelector(sel)?.innerText?.trim() || "";
+      const name = txt("main h1") || txt("h1");
+      const headline = txt("main .text-body-medium.break-words") || txt(".text-body-medium.break-words");
+      const base = txt("main .text-body-small.inline.t-black--light.break-words")
+        || txt(".text-body-small.inline.t-black--light.break-words");
+      // Experience section: LinkedIn renders every string twice; the
+      // aria-hidden copies are the clean visible ones.
+      const exp = [];
+      const sec = document.querySelector("#experience")?.closest("section");
+      if (sec) {
+        for (const li of sec.querySelectorAll("li.artdeco-list__item")) {
+          const spans = [...li.querySelectorAll('span[aria-hidden="true"]')]
+            .map((s) => s.innerText.trim()).filter(Boolean);
+          if (!spans.length) continue;
+          const title = spans[0];
+          const company = (spans[1] || "").split("·")[0].trim();
+          if (title) exp.push(company ? `${title} @ ${company}` : title);
+          if (exp.length >= 4) break;
+        }
+      }
+      let company = exp[0]?.includes(" @ ") ? exp[0].split(" @ ")[1] : "";
+      if (!company) {
+        const m = headline.match(/\b(?:at|@)\s+(.+)$/i);
+        if (m) company = m[1].trim();
+      }
+      return {
+        name,
+        company,
+        title: exp[0] ? exp[0].split(" @ ")[0] : headline,
+        pastExperience: exp.join("; "),
+        base,
+        linkedinUrl: location.href.split("?")[0].split("#")[0],
+      };
+    }
+
+    function injectLinkedInSaveButton() {
+      if (!/(^|\.)linkedin\.com$/.test(location.hostname)) return;
+      if (!location.pathname.startsWith("/in/")) return;
+      if (document.getElementById("sja-save-conn")) return;
+      const h1 = document.querySelector("main h1");
+      if (!h1) return;
+      const btn = document.createElement("button");
+      btn.id = "sja-save-conn";
+      btn.textContent = "📇 Save";
+      btn.title = "Save this person to your Connections sheet";
+      btn.style.cssText =
+        "display:inline-flex;align-items:center;margin-left:10px;vertical-align:middle;" +
+        "padding:4px 12px;border:none;border-radius:999px;cursor:pointer;" +
+        "background:#173F6B;color:#FFF8ED;font:700 12px 'Nunito Sans',-apple-system,system-ui,sans-serif;";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        chrome.runtime.sendMessage({ type: "SAVE_CONNECTION", contact: extractLinkedInConnection() }, (res) => {
+          btn.disabled = false;
+          if (res?.ok) {
+            btn.textContent = "✓ Saved";
+            btn.style.background = "#2F9E44";
+            setTimeout(() => { btn.textContent = "📇 Save"; btn.style.background = "#173F6B"; }, 2500);
+          } else {
+            btn.textContent = "Failed";
+            btn.title = res?.error || "Save failed";
+            setTimeout(() => { btn.textContent = "📇 Save"; }, 2500);
+          }
+        });
+      });
+      h1.insertAdjacentElement("afterend", btn);
+    }
+
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 1500));
+      document.addEventListener("DOMContentLoaded", () => setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); injectLinkedInSaveButton(); }, 1500));
     } else {
-      setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 1500);
+      setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); injectLinkedInSaveButton(); }, 1500);
     }
     const observer = new MutationObserver(() => {
       clearTimeout(window.__sjaObserverTimer);
-      window.__sjaObserverTimer = setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); }, 800);
+      window.__sjaObserverTimer = setTimeout(() => { tryInjectSuggestions(); injectSaveJobButton(); injectLinkedInSaveButton(); }, 800);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   })();

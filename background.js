@@ -3,6 +3,10 @@
 // stays open while you work through an application form.
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
+// Same baked-in sheet webhook the side panel uses; the LinkedIn save button
+// posts connections through here (content scripts can't fetch cross-origin).
+const SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbx8UQW40PMfKpi8_mwJGkicY-jGEow5Op2s8lNku2vzcWvjKX-dZhI_lEMknbSbrKmo/exec";
+
 const KEYS = {
   SAVED_JOBS: "sja_saved_jobs",
   PROFILES: "sja_profiles",
@@ -300,6 +304,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case "SET_DEFAULT_EXP": {
           await setDefaultExpId(message.profileId, message.expId);
           sendResponse({ ok: true });
+          break;
+        }
+        case "SAVE_CONNECTION": {
+          // From the in-page button on linkedin.com/in/* profiles.
+          const contact = message.contact || {};
+          if (!contact.name) {
+            sendResponse({ ok: false, error: "Could not read the profile name." });
+            break;
+          }
+          const res = await fetch(SHEET_WEBHOOK, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ ...contact, type: "connection" })
+          });
+          const data = await res.json();
+          sendResponse(data.ok ? { ok: true, row: data.row } : { ok: false, error: data.error || "Sheet script error" });
           break;
         }
         default:

@@ -1,5 +1,5 @@
 /**
- * Job Tracker webhook v8 — bound Apps Script for the "Job Tracker" spreadsheet.
+ * Job Tracker webhook v9 — bound Apps Script for the "Job Tracker" spreadsheet.
  * Serves the Smart JobFill extension, the News Radar Applications dashboard,
  * and the local outreach engine (~/.claude/scripts/outreach_apps.py).
  *
@@ -19,6 +19,12 @@
 const SHEET_NAME = "2026";
 const HEADER_ROW = 4;
 const READ_TOKEN = "__TOKEN_PLACEHOLDER__";
+
+// The separate "Connections" networking spreadsheet the LinkedIn save button
+// writes into (fixed monthly tab, per Chen).
+const CONNECTIONS_ID = "1h_yQczc26qQEXPfIwkkHyTUHUNMGSlkdy-6E1a8RpZs";
+const CONNECTIONS_TAB = "To Reach Out_202608";
+const CONN_HEADER_ROW = 3;
 
 // ── plumbing ──────────────────────────────────────────────────────────────────
 
@@ -235,6 +241,57 @@ function removeContact_(data) {
   return { ok: true };
 }
 
+function saveConnection_(data) {
+  const ss = SpreadsheetApp.openById(CONNECTIONS_ID);
+  const sh = ss.getSheetByName(CONNECTIONS_TAB);
+  if (!sh) return { ok: false, error: "Tab not found: " + CONNECTIONS_TAB };
+  const readHeaders = function () {
+    return sh.getRange(CONN_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0]
+      .map(function (h) { return String(h).trim(); });
+  };
+  let headers = readHeaders();
+  // One-time rename: the SIPA? column now holds the person's company.
+  const sipa = headers.indexOf("SIPA?");
+  if (sipa >= 0) sh.getRange(CONN_HEADER_ROW, sipa + 1).setValue("Company");
+  headers = readHeaders();
+  let li = headers.findIndex(function (h) { return /linkedin/i.test(h); });
+  if (li < 0) {
+    const em = headers.findIndex(function (h) { return /^e-?mail/i.test(h); });
+    const at = em >= 0 ? em + 1 : headers.length;
+    sh.insertColumnAfter(at);
+    sh.getRange(CONN_HEADER_ROW, at + 1).setValue("LinkedIn");
+    headers = readHeaders();
+    li = headers.indexOf("LinkedIn");
+  }
+  const col = function (name) { return headers.indexOf(name) + 1; };
+  const url = String(data.linkedinUrl || "").trim();
+  // Re-saving the same person updates their row instead of duplicating it.
+  let target = 0;
+  const last = sh.getLastRow();
+  if (last > CONN_HEADER_ROW && url) {
+    const urls = sh.getRange(CONN_HEADER_ROW + 1, li + 1, last - CONN_HEADER_ROW, 1).getValues();
+    for (let i = 0; i < urls.length; i++) {
+      if (String(urls[i][0]).trim() === url) { target = CONN_HEADER_ROW + 1 + i; break; }
+    }
+  }
+  if (!target) {
+    const nameCol = col("Name") || 3;
+    const names = last > CONN_HEADER_ROW ? sh.getRange(CONN_HEADER_ROW + 1, nameCol, last - CONN_HEADER_ROW, 1).getValues() : [];
+    target = CONN_HEADER_ROW + 1 + names.length;
+    for (let i = 0; i < names.length; i++) {
+      if (!String(names[i][0]).trim()) { target = CONN_HEADER_ROW + 1 + i; break; }
+    }
+  }
+  const put = function (name, val) { const c = col(name); if (c > 0 && val) sh.getRange(target, c).setValue(val); };
+  put("Name", data.name);
+  put("Company", data.company);
+  put("Title", data.title);
+  put("Past experience", data.pastExperience);
+  put("Base", data.base);
+  put("LinkedIn", url);
+  return { ok: true, row: target };
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -242,6 +299,7 @@ function doPost(e) {
     if (type === "addRow") return json_(addTrackerRow_(data));       // extension (legacy shape)
     if (type === "context") return json_(saveContext_(data));       // extension
     if (type === "profile") return json_(saveProfile_(data));       // extension
+    if (type === "connection") return json_(saveConnection_(data)); // extension (LinkedIn button)
     // Dashboard / engine actions carry the token.
     if (data.token !== READ_TOKEN) return json_({ ok: false, error: "unauthorized" });
     if (type === "addContact") return json_(addContact_(data));
