@@ -727,6 +727,11 @@
         });
         sendResponse({ ok: true, filledCount: count });
       }
+      if (message.type === "EXTRACT_JOB") {
+        // Manual capture from the side panel — works on any page, including
+        // boards the floating-button heuristic misses.
+        sendResponse({ ok: true, job: extractJobPosting() });
+      }
       return true;
     });
     function tryInjectSuggestions() {
@@ -747,9 +752,12 @@
 
     function looksLikeJobPage() {
       const h = location.hostname;
-      if (/myworkdayjobs|greenhouse|lever\.co|icims|taleo|smartrecruiters|linkedin\.com\/jobs|indeed/.test(h + location.pathname)) return true;
+      // Company-hosted boards live on career-ish subdomains (e.g.
+      // recruitment.macquarie.com) regardless of which ATS runs them.
+      if (/^(careers?|recruitment|recruiting|jobs?|apply|talent)\./i.test(h)) return true;
+      if (/myworkdayjobs|greenhouse|lever\.co|icims|taleo|smartrecruiters|avature|linkedin\.com\/jobs|indeed/.test(h + location.pathname)) return true;
       const text = document.body.innerText.slice(0, 40000).toLowerCase();
-      const applyish = /apply now|apply for this job|submit application|postuler/.test(text);
+      const applyish = /\bapply\b|postuler/.test(text);
       const jobish = /responsibilities|qualifications|job description|what you.ll do|requirements/.test(text);
       return applyish && jobish;
     }

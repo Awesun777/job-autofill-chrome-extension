@@ -287,6 +287,30 @@ function renderSheetStatus() {
   return row;
 }
 
+// Manual capture fallback: grab the job posting from the active tab even on
+// boards where the floating Save-job button's heuristic doesn't fire.
+async function saveCurrentPage() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !/^https?:/.test(tab.url ?? "")) {
+    throw new Error("Open the job page in this window first.");
+  }
+  const ask = () => chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_JOB" });
+  let res;
+  try {
+    res = await ask();
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+    await new Promise((r) => setTimeout(r, 150));
+    res = await ask();
+  }
+  if (!res?.ok || !res.job?.title) throw new Error("Could not read a job posting on this page.");
+  await new Promise((resolve, reject) =>
+    chrome.runtime.sendMessage({ type: "SAVE_JOB", job: res.job }, (r) =>
+      r?.ok ? resolve() : reject(new Error(r?.error || "Save failed"))
+    )
+  );
+}
+
 // First visit to the Jobs view pulls the category list automatically.
 async function ensureCategories() {
   if (sheetCats.length || catsFetchInFlight) return;
@@ -313,6 +337,27 @@ function renderJobs() {
   ensureCategories();
 
   main.appendChild(el(`<div class="label">Saved jobs</div>`));
+
+  // Catch-all capture for boards the floating button misses.
+  const saveRow = el(`
+    <div class="hint" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn-small primary">＋ Save current page</button>
+      <span>if the floating 💼 button didn't appear on the job page</span>
+    </div>`);
+  const saveBtn = saveRow.querySelector("button");
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+    try {
+      await saveCurrentPage();
+      // storage.onChanged re-renders with the new card on top.
+    } catch (e) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "＋ Save current page";
+      toastMsg(saveBtn, String(e.message || e));
+    }
+  });
+  main.appendChild(saveRow);
 
   if (!savedJobs.length) {
     main.appendChild(el(
