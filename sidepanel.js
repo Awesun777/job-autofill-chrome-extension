@@ -334,6 +334,7 @@ function renderJobs() {
           <button class="btn-small primary">Copy for AI</button>
           <button class="btn-small">Outreach prompt</button>
           <button class="btn-small">Open</button>
+          <button class="btn-small">✎ Company</button>
           <button class="btn-small">✕</button>
         </div>
         ${sheetWebhook ? `
@@ -344,17 +345,43 @@ function renderJobs() {
           <button class="btn-small primary">${j.sheetRow ? "Add again" : "Add to Sheet"}</button>
         </div>` : ""}
       </div>`);
-    const [copyBtn, promptBtn, openBtn, delBtn, sheetBtn] = card.querySelectorAll("button");
+    const [copyBtn, promptBtn, openBtn, editBtn, delBtn, sheetBtn] = card.querySelectorAll("button");
     const catSel = card.querySelector(".cat-select");
     const copyCard = async (text, e) => { await copyText(text); copied(card, e.clientX, e.clientY); };
     card.addEventListener("click", (e) => {
-      if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLSelectElement) return;
+      if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement) return;
       copyCard(jobMarkdown(j), e);
     });
     copyBtn.addEventListener("click", (e) => copyCard(jobMarkdown(j), e));
     promptBtn.addEventListener("click", (e) => copyCard(outreachPrompt(j), e));
     openBtn.addEventListener("click", () => chrome.tabs.create({ url: j.url }));
     delBtn.addEventListener("click", () => saveJobs(savedJobs.filter((x) => x.id !== j.id)));
+    // Inline company rename — the capture guesses the employer and sometimes
+    // guesses badly; the corrected name flows into Copy for AI and the sheet.
+    editBtn.addEventListener("click", () => {
+      if (card.querySelector(".addform")) return;
+      const form = el(`
+        <div class="addform" style="padding: 8px 0 0">
+          <input type="text" value="${esc(j.company || "")}" placeholder="Company name" />
+          <div class="addform-btns">
+            <button class="btn-small primary">Save</button>
+            <button class="btn-small">Cancel</button>
+          </div>
+        </div>`);
+      const input = form.querySelector("input");
+      const [saveB, cancelB] = form.querySelectorAll("button");
+      const save = async () => {
+        const name = input.value.trim();
+        if (!name) return;
+        await saveJobs(savedJobs.map((x) => (x.id === j.id ? { ...x, company: name } : x)));
+      };
+      saveB.addEventListener("click", save);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
+      cancelB.addEventListener("click", () => render());
+      card.appendChild(form);
+      input.focus();
+      input.select();
+    });
     sheetBtn?.addEventListener("click", async () => {
       if (!sheetCats.length) { toastMsg(sheetBtn, "No categories — hit Refresh categories"); return; }
       sheetBtn.disabled = true;
