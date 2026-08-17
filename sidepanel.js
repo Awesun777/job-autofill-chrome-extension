@@ -416,8 +416,6 @@ function renderJobs() {
         <div class="job-title">${esc(j.title)}</div>
         <div class="job-meta">${esc(meta)}${j.sheetRow ? ` · <b>✓ in sheet (row ${j.sheetRow})</b>` : ""}${j.inApps ? ` · <b>◆ in Applications</b>` : ""}</div>
         <div class="job-btns">
-          <button class="btn-small primary">Copy for AI</button>
-          <button class="btn-small">Outreach prompt</button>
           <button class="btn-small">Open</button>
           <button class="btn-small">✎ Company</button>
           <button class="btn-small">✕</button>
@@ -431,15 +429,13 @@ function renderJobs() {
           <button class="btn-small">${j.inApps ? "↻ Update Applications" : "→ Applications"}</button>
         </div>` : ""}
       </div>`);
-    const [copyBtn, promptBtn, openBtn, editBtn, delBtn, sheetBtn, appsBtn] = card.querySelectorAll("button");
+    const [openBtn, editBtn, delBtn, sheetBtn, appsBtn] = card.querySelectorAll("button");
     const catSel = card.querySelector(".cat-select");
     const copyCard = async (text, e) => { await copyText(text); copied(card, e.clientX, e.clientY); };
     card.addEventListener("click", (e) => {
       if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement) return;
       copyCard(jobMarkdown(j), e);
     });
-    copyBtn.addEventListener("click", (e) => copyCard(jobMarkdown(j), e));
-    promptBtn.addEventListener("click", (e) => copyCard(outreachPrompt(j), e));
     openBtn.addEventListener("click", () => chrome.tabs.create({ url: j.url }));
     delBtn.addEventListener("click", () => saveJobs(savedJobs.filter((x) => x.id !== j.id)));
     // Inline company rename — the capture guesses the employer and sometimes
