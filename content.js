@@ -769,6 +769,15 @@
       return String(name || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim();
     }
 
+    // JSON-LD and meta strings often ship HTML-escaped ("M&amp;A") — decode
+    // before anything lands in the sheet.
+    function decodeEntities(s) {
+      if (!/[&]/.test(String(s))) return s;
+      const ta = document.createElement("textarea");
+      ta.innerHTML = String(s);
+      return ta.value;
+    }
+
     function extractJobPosting() {
       const meta = (sel) => document.querySelector(`meta[property="${sel}"], meta[name="${sel}"]`)?.content?.trim();
       let title = document.querySelector("h1")?.innerText.trim() || meta("og:title") || document.title.trim();
@@ -799,7 +808,7 @@
       if (best.length < 200) best = document.body.innerText.trim();
       return {
         id: crypto.randomUUID(),
-        title, company: cleanCompany(company), postDate,
+        title: decodeEntities(title), company: decodeEntities(cleanCompany(company)), postDate,
         url: location.href.split("#")[0],
         source: location.hostname.replace(/^www\./, ""),
         capturedAt: new Date().toISOString(),
