@@ -860,38 +860,81 @@
       return document.querySelector("main h1, main h2");
     }
 
-    function extractLinkedInConnection() {
+    function liSectionByHeading(re) {
+      const head = [...document.querySelectorAll("main h2, main h3")]
+        .find((el) => re.test(el.innerText.trim()));
+      return head ? head.closest("section") || head.parentElement : null;
+    }
+
+    // Experience/Education render lazily — scroll them into view once so
+    // their list items exist, then jump back to the top.
+    async function liForceRenderSections() {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      for (const re of [/^experience$/i, /^education$/i]) {
+        const sec = liSectionByHeading(re);
+        if (sec && !sec.querySelector("li")) {
+          sec.scrollIntoView({ block: "center" });
+          await sleep(900);
+        }
+      }
+      window.scrollTo({ top: 0 });
+      await sleep(300);
+    }
+
+    async function extractLinkedInConnection() {
+      await liForceRenderSections();
       const nameEl = liNameEl();
       const name = document.title.replace(/^\(\d+\)\s*/, "").split("|")[0].trim()
         || nameEl?.innerText.trim() || "";
-      // Top card lines: [name, "· 3rd", headline, location, ...]
-      const card = nameEl?.closest("section") || document.querySelector("main");
-      const noise = /^·|degree connection|^Contact info$|^\d[\d,]* (followers|connections)|^(1st|2nd|3rd)\b|^(He|She|They)\//i;
-      const lines = (card?.innerText || "").split("\n").map((s) => s.trim()).filter(Boolean)
+      // Parse the top card from a clone with our own button removed —
+      // otherwise "📇 Save" pollutes the text lines (the v1.8.3 chaos).
+      const cardEl = nameEl?.closest("section") || document.querySelector("main");
+      const clone = cardEl?.cloneNode(true);
+      clone?.querySelector("#sja-save-conn")?.remove();
+      const noise = /^·|degree connection|^Contact info$|^\d[\d,]*\s*$|^(followers|connections)$|^\d[\d,]* (followers|connections)|^(1st|2nd|3rd)\b|^(He|She|They)\/|^Message$|^Connect$|^Follow$|^More$/i;
+      const lines = (clone?.innerText || "").split("\n").map((s) => s.trim()).filter(Boolean)
         .filter((l) => l !== nameEl?.innerText.trim() && !noise.test(l));
       const headline = lines[0] || "";
       const base = lines[1] || "";
-      // Experience section = the one whose heading reads "Experience".
-      const exp = [];
-      const expHead = [...document.querySelectorAll("main h2, main h3")]
-        .find((el) => /^experience$/i.test(el.innerText.trim()));
-      if (expHead) {
-        const sec = expHead.closest("section") || expHead.parentElement;
-        for (const li of sec.querySelectorAll("li")) {
+      // After "Contact info" the top card lists the current employer (and
+      // often the school) — LinkedIn's own labels, the most reliable source.
+      const rawLines = (clone?.innerText || "").split("\n").map((s) => s.trim()).filter(Boolean);
+      const ciIdx = rawLines.findIndex((l) => /^Contact info$/i.test(l));
+      const sideLinks = ciIdx >= 0
+        ? rawLines.slice(ciIdx + 1).filter((l) => !noise.test(l) && !/^\d/.test(l)).slice(0, 2)
+        : [];
+      // All employers from the Experience section (grouped entries put the
+      // company on the group's first line, so collect every non-title,
+      // non-date, non-metadata line).
+      const junk = /^(full-time|part-time|internship|contract|freelance|self-employed|·|remote|hybrid|on-site)$/i;
+      const companies = [];
+      const expSec = liSectionByHeading(/^experience$/i);
+      if (expSec) {
+        for (const li of expSec.querySelectorAll("li")) {
           const ls = li.innerText.split("\n").map((s) => s.trim()).filter(Boolean);
-          if (!ls.length) continue;
-          const dates = ls.find((l) => /\d{4}/.test(l)) || "";
-          exp.push(dates ? `${ls[0]} (${dates})` : ls[0]);
-          if (exp.length >= 3) break;
+          const cand = ls[1] ? ls[1].split("·")[0].trim() : "";
+          if (cand && !junk.test(cand) && !/\d{4}/.test(cand)) companies.push(cand);
+          else if (ls[0] && !/\d{4}/.test(ls[0]) && li.querySelector("li")) companies.push(ls[0]);
+        }
+      }
+      const schools = [];
+      const eduSec = liSectionByHeading(/^education$/i);
+      if (eduSec) {
+        for (const li of eduSec.querySelectorAll("li")) {
+          const ls = li.innerText.split("\n").map((s) => s.trim()).filter(Boolean);
+          if (ls[0]) schools.push(ls[0]);
         }
       }
       const atMatch = headline.match(/\b(?:at|@)\s+(.+)$/i);
-      const company = atMatch ? atMatch[1].trim() : "";
+      const company = (sideLinks[0] || (atMatch ? atMatch[1] : "") || companies[0] || "")
+        .replace(/^the\s+/i, "").trim();
+      const past = [...new Set([...companies, ...(sideLinks[0] ? [sideLinks[0]] : []), ...schools, ...sideLinks.slice(1)])]
+        .filter((x) => x).slice(0, 10).join("; ");
       return {
         name,
         company,
         title: atMatch ? headline.slice(0, atMatch.index).trim() : headline,
-        pastExperience: exp.join("; "),
+        pastExperience: past,
         base,
         linkedinUrl: location.href.split("?")[0].split("#")[0],
       };
@@ -911,11 +954,13 @@
         "display:inline-flex;align-items:center;margin-left:10px;vertical-align:middle;" +
         "padding:4px 12px;border:none;border-radius:999px;cursor:pointer;" +
         "background:#173F6B;color:#FFF8ED;font:700 12px 'Nunito Sans',-apple-system,system-ui,sans-serif;";
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         btn.disabled = true;
+        btn.textContent = "Reading…";
+        const contact = await extractLinkedInConnection();
         btn.textContent = "Saving…";
-        chrome.runtime.sendMessage({ type: "SAVE_CONNECTION", contact: extractLinkedInConnection() }, (res) => {
+        chrome.runtime.sendMessage({ type: "SAVE_CONNECTION", contact }, (res) => {
           btn.disabled = false;
           if (res?.ok) {
             btn.textContent = "✓ Saved";
