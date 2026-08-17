@@ -928,6 +928,16 @@
       const atMatch = headline.match(/\b(?:at|@)\s+(.+)$/i);
       const company = (sideLinks[0] || (atMatch ? atMatch[1] : "") || companies[0] || "")
         .replace(/^the\s+/i, "").trim();
+      // Base as a short form: NYC / DC / SF / LA…, else just the city.
+      const baseShort = (() => {
+        const l = base.toLowerCase();
+        for (const [re2, s] of [[/new york|nyc/, "NYC"], [/washington|d\.?c\.?\b/, "DC"],
+          [/san francisco|bay area/, "SF"], [/los angeles/, "LA"], [/hong kong/, "HK"],
+          [/singapore/, "SG"], [/united kingdom|london/, "London"]]) {
+          if (re2.test(l)) return s;
+        }
+        return base.split(/[,\-]| Area/)[0].trim();
+      })();
       const past = [...new Set([...companies, ...(sideLinks[0] ? [sideLinks[0]] : []), ...schools, ...sideLinks.slice(1)])]
         .filter((x) => x).slice(0, 10).join("; ");
       return {
@@ -935,7 +945,7 @@
         company,
         title: atMatch ? headline.slice(0, atMatch.index).trim() : headline,
         pastExperience: past,
-        base,
+        base: baseShort,
         linkedinUrl: location.href.split("?")[0].split("#")[0],
       };
     }
