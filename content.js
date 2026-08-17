@@ -853,36 +853,44 @@
     // saves the person into the Connections sheet (Name / Company / Title /
     // Past experience / Base / LinkedIn URL) through the sheet webhook.
 
+    // 2026 LinkedIn markup: no h1, hashed class names, no #experience anchor.
+    // Parse the top card by its text lines and find sections by heading text —
+    // the only things that survive their markup churn.
+    function liNameEl() {
+      return document.querySelector("main h1, main h2");
+    }
+
     function extractLinkedInConnection() {
-      const txt = (sel) => document.querySelector(sel)?.innerText?.trim() || "";
-      const name = txt("main h1") || txt("h1");
-      const headline = txt("main .text-body-medium.break-words") || txt(".text-body-medium.break-words");
-      const base = txt("main .text-body-small.inline.t-black--light.break-words")
-        || txt(".text-body-small.inline.t-black--light.break-words");
-      // Experience section: LinkedIn renders every string twice; the
-      // aria-hidden copies are the clean visible ones.
+      const nameEl = liNameEl();
+      const name = document.title.replace(/^\(\d+\)\s*/, "").split("|")[0].trim()
+        || nameEl?.innerText.trim() || "";
+      // Top card lines: [name, "· 3rd", headline, location, ...]
+      const card = nameEl?.closest("section") || document.querySelector("main");
+      const noise = /^·|degree connection|^Contact info$|^\d[\d,]* (followers|connections)|^(1st|2nd|3rd)\b|^(He|She|They)\//i;
+      const lines = (card?.innerText || "").split("\n").map((s) => s.trim()).filter(Boolean)
+        .filter((l) => l !== nameEl?.innerText.trim() && !noise.test(l));
+      const headline = lines[0] || "";
+      const base = lines[1] || "";
+      // Experience section = the one whose heading reads "Experience".
       const exp = [];
-      const sec = document.querySelector("#experience")?.closest("section");
-      if (sec) {
-        for (const li of sec.querySelectorAll("li.artdeco-list__item")) {
-          const spans = [...li.querySelectorAll('span[aria-hidden="true"]')]
-            .map((s) => s.innerText.trim()).filter(Boolean);
-          if (!spans.length) continue;
-          const title = spans[0];
-          const company = (spans[1] || "").split("·")[0].trim();
-          if (title) exp.push(company ? `${title} @ ${company}` : title);
-          if (exp.length >= 4) break;
+      const expHead = [...document.querySelectorAll("main h2, main h3")]
+        .find((el) => /^experience$/i.test(el.innerText.trim()));
+      if (expHead) {
+        const sec = expHead.closest("section") || expHead.parentElement;
+        for (const li of sec.querySelectorAll("li")) {
+          const ls = li.innerText.split("\n").map((s) => s.trim()).filter(Boolean);
+          if (!ls.length) continue;
+          const dates = ls.find((l) => /\d{4}/.test(l)) || "";
+          exp.push(dates ? `${ls[0]} (${dates})` : ls[0]);
+          if (exp.length >= 3) break;
         }
       }
-      let company = exp[0]?.includes(" @ ") ? exp[0].split(" @ ")[1] : "";
-      if (!company) {
-        const m = headline.match(/\b(?:at|@)\s+(.+)$/i);
-        if (m) company = m[1].trim();
-      }
+      const atMatch = headline.match(/\b(?:at|@)\s+(.+)$/i);
+      const company = atMatch ? atMatch[1].trim() : "";
       return {
         name,
         company,
-        title: exp[0] ? exp[0].split(" @ ")[0] : headline,
+        title: atMatch ? headline.slice(0, atMatch.index).trim() : headline,
         pastExperience: exp.join("; "),
         base,
         linkedinUrl: location.href.split("?")[0].split("#")[0],
@@ -893,7 +901,7 @@
       if (!/(^|\.)linkedin\.com$/.test(location.hostname)) return;
       if (!location.pathname.startsWith("/in/")) return;
       if (document.getElementById("sja-save-conn")) return;
-      const h1 = document.querySelector("main h1");
+      const h1 = liNameEl();
       if (!h1) return;
       const btn = document.createElement("button");
       btn.id = "sja-save-conn";
