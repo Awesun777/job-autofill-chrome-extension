@@ -251,24 +251,52 @@ async function fetchCategories() {
   await chrome.storage.local.set({ [KEYS.SHEET_CATS]: sheetCats });
 }
 
+// Stable key linking a tracker row to its full context in the hidden AppData
+// tab — the dashboard recomputes it from the row's company+position.
+function appKeyOf(company, position) {
+  return (company + "|" + position).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+// text/plain avoids a CORS preflight, which Apps Script cannot answer.
+function postSheet(body) {
+  return fetch(sheetWebhook, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body),
+  });
+}
+
 async function addToSheet(job, category) {
   // Same entity-code cleanup the capture applies, so jobs saved before the
   // fix still land in the sheet with a clean company name.
   const company = String(job.company || "").replace(/^\s*\d{3,}\s*[-–—:]?\s+/, "").trim();
-  // text/plain avoids a CORS preflight, which Apps Script cannot answer.
-  const res = await fetch(sheetWebhook, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({
-      company,
-      position: job.title || "",
-      postDate: job.postDate || "",
-      applyDate: new Date().toLocaleDateString("en-US"),
-      category,
-    }),
+  const position = job.title || "";
+  const res = await postSheet({
+    company,
+    position,
+    postDate: job.postDate || "",
+    applyDate: new Date().toLocaleDateString("en-US"),
+    category,
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || "Sheet script error");
+
+  // Ship the full context + current resume snapshot for the outreach
+  // dashboard. Best-effort: a failure here must not undo the row above.
+  try {
+    await postSheet({
+      type: "context",
+      appKey: appKeyOf(company, position),
+      company, position,
+      url: job.url || "",
+      source: job.source || "",
+      postDate: job.postDate || "",
+      description: job.description || "",
+    });
+    const active = profiles.find((p) => p.id === activeId) || profiles[0];
+    if (active) await postSheet({ type: "profile", profile: active });
+  } catch { /* context sync is best-effort */ }
+
   return data.row;
 }
 
